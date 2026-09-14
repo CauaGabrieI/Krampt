@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.urls import reverse
 
 from posts.models import Post
@@ -32,6 +32,58 @@ class AutenticacaoTests(TestCase):
         self.assertIn("private", response["Cache-Control"])
         Session.objects.filter(session_key=self.client.session.session_key).delete()
         self.assertRedirects(self.client.get("/"), "/login/?next=/")
+
+
+class LogoutTests(TestCase):
+    def setUp(self):
+        self.usuario = get_user_model().objects.create_user(
+            username="sair", password="Nuvem!Laranja927"
+        )
+        self.url = reverse("logout")
+
+    def test_logout_por_post_desloga_e_redireciona(self):
+        self.client.force_login(self.usuario)
+        self.assertTrue(self.client.session.get("_auth_user_id"))
+
+        response = self.client.post(self.url)
+
+        self.assertRedirects(response, reverse("login:login"))
+        self.assertNotIn("_auth_user_id", self.client.session)
+        self.client.get(reverse("home"))
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_logout_por_get_retorna_405_e_nao_desloga(self):
+        self.client.force_login(self.usuario)
+        chave = self.client.session.session_key
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 405)
+        self.assertIn("_auth_user_id", self.client.session)
+        self.assertTrue(Session.objects.filter(session_key=chave).exists())
+
+    def test_logout_anonimo_vai_para_login(self):
+        response = self.client.post(self.url)
+
+        self.assertRedirects(response, "/login/?next=/logout/")
+
+    def test_logout_sem_csrf_retorna_403(self):
+        cliente = Client(enforce_csrf_checks=True)
+        cliente.force_login(self.usuario)
+
+        response = cliente.post(self.url)
+
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("_auth_user_id", cliente.session)
+
+    def test_logout_realmente_invalida_a_sessao(self):
+        self.client.force_login(self.usuario)
+        chave = self.client.session.session_key
+        self.client.post(self.url)
+
+        self.assertFalse(Session.objects.filter(session_key=chave).exists())
+        self.client.get(reverse("home"))
+        self.assertNotIn("_auth_user_id", self.client.session)
 
 
 class BuscarTests(TestCase):

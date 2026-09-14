@@ -4,7 +4,7 @@ from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.db.models import Q
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
 from posts.models import Post, ImagemPost
 from django.db import transaction
 from posts.services import comprimir_imagem_lossless, posts_para_exibir
@@ -14,6 +14,8 @@ from profile.services import seguindo_ids
 User = get_user_model()
 
 
+@login_required
+@require_POST
 def logout_view(request):
     logout(request)
     return redirect("login:login")

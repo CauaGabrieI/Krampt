@@ -23,9 +23,12 @@
       </a>
     {% endif %}
     <div class="account-menu-divider" aria-hidden="true"></div>
-    <a class="account-menu-item account-menu-logout" href="{% url 'logout' %}">
-      <img src="{% static 'imgs/saida.png' %}" alt="" aria-hidden="true">
-      <span>Sair</span>
-    </a>
+    <form method="post" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button class="account-menu-item account-menu-logout" type="submit">
+        <img src="{% static 'imgs/saida.png' %}" alt="" aria-hidden="true">
+        <span>Sair</span>
+      </button>
+    </form>
   </nav>
 </div>
