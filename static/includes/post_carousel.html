@@ -1,0 +1,23 @@
+{% load static %}
+{% if fotos %}
+  <div class="post-carousel" role="region" aria-roledescription="carrossel" aria-label="Fotos da publicação de {{ original.autor.username }}">
+    <div class="post-carousel-track" tabindex="0" aria-label="Imagens; use as setas para trocar de foto">
+      {% for foto in fotos %}
+        <a class="post-media" href="{{ foto.url }}" target="_blank" rel="noopener" aria-label="Abrir foto {{ forloop.counter }} de {{ fotos|length }}">
+          <img src="{{ foto.url }}" alt="Foto {{ forloop.counter }} da publicação de {{ original.autor.username }}" loading="lazy">
+        </a>
+      {% endfor %}
+    </div>
+    {% if fotos|length > 1 %}
+      <div class="post-carousel-controls" hidden>
+        <button type="button" data-carousel-step="-1" aria-label="Foto anterior">
+          <img src="{% static 'imgs/setas-para-cima.png' %}" width="20" height="20" alt="" aria-hidden="true">
+        </button>
+        <span class="post-carousel-count" aria-live="polite" aria-atomic="true">1 / {{ fotos|length }}</span>
+        <button type="button" data-carousel-step="1" aria-label="Próxima foto">
+          <img src="{% static 'imgs/setas-para-cima.png' %}" width="20" height="20" alt="" aria-hidden="true">
+        </button>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}

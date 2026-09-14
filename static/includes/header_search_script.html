@@ -1,0 +1,24 @@
+<script>
+  const search = document.querySelector('.header-search');
+  const searchButton = search.querySelector('.search-trigger');
+  const searchInput = search.querySelector('.header-search-input');
+
+  function toggleSearch(open) {
+    search.classList.toggle('is-open', open);
+    searchButton.setAttribute('aria-expanded', String(open));
+    searchButton.setAttribute('aria-label', open ? 'Fechar pesquisa' : 'Abrir pesquisa');
+    searchInput.setAttribute('aria-hidden', String(!open));
+    searchInput.tabIndex = open ? 0 : -1;
+    if (open) searchInput.focus();
+    else searchButton.focus();
+  }
+
+  searchButton.addEventListener('click', () => toggleSearch(!search.classList.contains('is-open')));
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && search.classList.contains('is-open')) toggleSearch(false);
+    if (event.key === '/' && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) {
+      event.preventDefault();
+      toggleSearch(true);
+    }
+  });
+</script>

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Feed | Krampt{% endblock %}
+{% block body_class %}home-feed-page{% endblock %}
+{% block content %}
+  {% include "includes/site_header.html" with active_page="home" %}
+
+  <div class="app-shell">
+    {% include "includes/explore_rail.html" %}
+
+    <main class="feed" id="feed">
+      <div class="feed-heading">
+        <h1>Início</h1>
+        <div class="feed-tabs">
+          <a href="{% url 'home' %}" class="{% if filtro != 'seguindo' %}is-active{% endif %}">Recentes</a>
+          <a href="{% url 'home' %}?filtro=seguindo" class="{% if filtro == 'seguindo' %}is-active{% endif %}">Seguindo</a>
+        </div>
+      </div>
+
+      <div class="feed-scroll" tabindex="0" role="region" aria-label="Feed de publicações">
+      <form class="create-post" id="composer" method="post" action="{% url 'home' %}" enctype="multipart/form-data" data-submit-once>
+        {% csrf_token %}
+        {% include "includes/avatar.html" with usuario=request.user %}
+        <div class="composer-main field-float">
+          <textarea id="conteudo" name="conteudo" rows="3" placeholder=" ">{{ formulario.conteudo.value|default:'' }}</textarea>
+          <label for="conteudo">O que está acontecendo?</label>
+          <div class="composer-footer">
+            <div class="composer-photo-group">
+              <label class="composer-photo" for="composer-imagem" title="Adicionar foto ao post">
+                <span class="material-symbols-outlined" aria-hidden="true">add_a_photo</span>
+                <span class="sr-only">Adicionar foto ao post</span>
+              </label>
+              <input type="file" id="composer-imagem" name="imagem" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden>
+              <label class="composer-audio" for="composer-audio" title="Adicionar áudio">
+                <span class="material-symbols-outlined" aria-hidden="true">mic</span>
+                <span class="sr-only">Adicionar áudio</span>
+              </label>
+              <input type="file" id="composer-audio" name="audio" accept="audio/mpeg,audio/wav,audio/ogg,audio/webm,audio/mp4,audio/x-m4a" hidden>
+              <span class="composer-photo-name sr-only" id="composer-photo-name" role="status" aria-live="polite"></span>
+            </div>
+            <button class="primary-button" type="submit">
+              <img class="action-icon" src="{% static 'imgs/adicionar.png' %}" width="18" height="18" alt="" aria-hidden="true">
+              Publicar
+            </button>
+          </div>
+          <div class="composer-previews" id="composer-previews" aria-label="Imagens selecionadas"></div>
+          {% if formulario.errors %}<div role="alert">{{ formulario.errors }}<p>Selecione novamente as imagens para tentar publicar.</p></div>{% endif %}
+        </div>
+      </form>
+
+      <section class="post-list" aria-label="Publicações">
+        {% for post in posts %}
+          {% include "includes/post_card.html" with return_to="home" mostrar_comentarios=False %}
+        {% empty %}
+          <div class="empty-state">
+            <span class="empty-state-icon material-symbols-outlined" aria-hidden="true">edit_square</span>
+            {% if filtro == 'seguindo' %}
+              <h2>Ainda não há posts de quem você segue</h2>
+              <p>Siga usuários no painel ao lado; as publicações deles aparecerão aqui.</p>
+            {% else %}
+              <h2>Ainda não há posts por aqui</h2>
+              <p>Comece a conversa com sua primeira publicação.</p>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </section>
+      </div>
+    </main>
+
+
+  </div>
+{% endblock %}
+{% block scripts %}
+  {% include "includes/header_search_script.html" %}
+  {% include "includes/account_menu_script.html" %}
+  {% include "includes/post_share_script.html" %}
+  {% include "includes/composer_photo_script.html" %}
+{% endblock %}

@@ -1,0 +1,118 @@
+{% load static %}
+{% with original=post.post_original %}
+<article class="post" id="post-{{ post.id }}">
+  {% if post.original_id %}
+    <div class="post-repost-label">
+      <span class="material-symbols-outlined" aria-hidden="true">repeat</span>
+      {{ post.autor.first_name|default:post.autor.username }} republicou
+    </div>
+  {% endif %}
+  <div class="post-row">
+    {% include "includes/avatar.html" with usuario=original.autor %}
+    <div class="post-main">
+      <div class="post-header">
+        <div class="post-identity">
+          <strong>{{ original.autor.first_name|default:original.autor.username }}</strong>
+          <span>@{{ original.autor.username }}</span>
+          <span aria-hidden="true">·</span>
+          <time datetime="{{ original.criado_em|date:'c' }}">{{ original.criado_em|date:"d/m/Y H:i" }}</time>
+        </div>
+        {% if post.autor == request.user %}
+        <details class="post-menu">
+            <summary aria-label="Abrir opções do post" title="Opções do post">
+              <img src="{% static 'imgs/menu-pontos-vertical.png' %}" width="20" height="20" alt="">
+            </summary>
+            <div class="post-menu-panel">
+              {% if post.autor == request.user and not post.original_id %}
+                <a href="{% url 'posts:editar' post.id %}?next={{ request.get_full_path|urlencode }}">
+                  <span class="material-symbols-outlined" aria-hidden="true">edit</span>
+                  Editar
+                </a>
+              {% endif %}
+              {% if post.autor == request.user %}
+                <form method="post" action="{% url 'posts:excluir' post.id %}" data-async-action>
+                {% csrf_token %}
+                <input type="hidden" name="return_path" value="{{ request.get_full_path }}">
+                <button class="delete-post-action" type="submit">
+                  <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                  Apagar
+                </button>
+                </form>
+              {% endif %}
+            </div>
+        </details>
+        {% endif %}
+      </div>
+      {% if original.conteudo %}<p class="post-content">{{ original.conteudo_formatado|default:original.conteudo }}</p>{% endif %}
+      {% include "includes/post_carousel.html" with fotos=original.fotos %}
+      {% if original.audio %}
+        <audio class="post-audio" controls preload="metadata" src="{{ original.audio.url }}">Seu navegador não suporta áudio.</audio>
+      {% endif %}
+      <div class="post-actions" role="group" aria-label="Ações da publicação">
+        <form method="post" action="{% url 'posts:curtir' original.id %}" data-async-action data-action-type="like">
+          {% csrf_token %}
+          <input type="hidden" name="return_path" value="{{ request.get_full_path }}">
+          <input type="hidden" name="return_to" value="{{ return_to }}">
+          <input type="hidden" name="entry_id" value="{{ post.id }}">
+          <button class="post-action{% if original.curtido_pelo_usuario %} is-liked{% endif %}" type="submit" aria-label="{% if original.curtido_pelo_usuario %}Descurtir{% else %}Curtir{% endif %}" aria-pressed="{% if original.curtido_pelo_usuario %}true{% else %}false{% endif %}">
+            {% if original.curtido_pelo_usuario %}
+              <img src="{% static 'imgs/coracao.png' %}" width="19" height="19" alt="">
+            {% else %}
+              <img src="{% static 'imgs/coracao (1).png' %}" width="19" height="19" alt="">
+            {% endif %}
+            <span>{{ original.total_curtidas }}</span>
+          </button>
+        </form>
+        <form method="post" action="{% url 'posts:republicar' original.id %}" data-async-action data-action-type="repost">
+          {% csrf_token %}
+          <input type="hidden" name="return_path" value="{{ request.get_full_path }}">
+          <input type="hidden" name="return_to" value="{{ return_to }}">
+          <input type="hidden" name="entry_id" value="{{ post.id }}">
+          <button class="post-action{% if original.republicado_pelo_usuario %} is-reposted{% endif %}" type="submit" aria-label="{% if original.republicado_pelo_usuario %}Desfazer republicação{% else %}Republicar{% endif %}" aria-pressed="{% if original.republicado_pelo_usuario %}true{% else %}false{% endif %}">
+            <span class="material-symbols-outlined" aria-hidden="true">repeat</span>
+            <span>{{ original.total_republicacoes }}</span>
+          </button>
+        </form>
+        <form method="post" action="{% url 'posts:salvar' original.id %}" data-async-action data-action-type="save">
+          {% csrf_token %}
+          <input type="hidden" name="entry_id" value="{{ post.id }}">
+          <button class="post-action{% if original.salvo_pelo_usuario %} is-saved{% endif %}" type="submit" aria-label="{% if original.salvo_pelo_usuario %}Remover dos salvos{% else %}Salvar post{% endif %}" aria-pressed="{% if original.salvo_pelo_usuario %}true{% else %}false{% endif %}">
+            <img class="save-icon" src="{% if original.salvo_pelo_usuario %}{% static 'imgs/marca-paginas preenchido.png' %}{% else %}{% static 'imgs/marca-paginas.png' %}{% endif %}" width="19" height="19" alt="" aria-hidden="true">
+          </button>
+        </form>
+        <a class="post-action" href="{% if mostrar_comentarios %}#comment-form-{{ post.id }}{% else %}{% url 'posts:detalhe' original.id %}{% endif %}" aria-label="Comentar">
+          <span class="material-symbols-outlined" aria-hidden="true">chat_bubble</span>
+          <span>{{ original.total_comentarios }}</span>
+        </a>
+        <button class="post-action post-share" type="button" data-share-url="{% url 'home' %}#post-{{ original.id }}" aria-label="Compartilhar post">
+          <img class="share-icon" src="{% static 'imgs/compartilhar-quadrado.png' %}" width="19" height="19" alt="" aria-hidden="true">
+          <span class="post-share-label">Compartilhar</span>
+        </button>
+        <span class="sr-only post-share-status" role="status" aria-live="polite"></span>
+      </div>
+
+      {% if mostrar_comentarios %}
+      <div class="post-comments">
+        <form class="comment-form field-float" id="comment-form-{{ post.id }}" method="post" action="{% url 'posts:comentar' original.id %}" enctype="multipart/form-data" data-submit-once>
+          {% csrf_token %}
+          <input type="hidden" name="return_path" value="{{ request.get_full_path }}">
+          <input type="hidden" name="return_to" value="{{ return_to }}">
+          <input type="hidden" name="entry_id" value="{{ post.id }}">
+          <textarea id="comment-content-{{ post.id }}" name="conteudo" rows="2" maxlength="280" placeholder=" "></textarea>
+          <label for="comment-content-{{ post.id }}">Deixe um comentário</label>
+          <div class="comment-compose-tools">
+            <button class="emoji-button" type="button" data-emoji-target="comment-content-{{ post.id }}" aria-label="Adicionar emoji"><img src="{% static 'imgs/sorrir.png' %}" alt=""></button>
+            <label class="comment-image-button" for="comment-image-{{ post.id }}" title="Adicionar imagem ou GIF"><span class="material-symbols-outlined" aria-hidden="true">image</span></label>
+            <input id="comment-image-{{ post.id }}" class="comment-image-input" type="file" name="imagem" accept="image/jpeg,image/png,image/webp,image/gif">
+            <div class="comment-media-preview" data-media-preview-for="comment-image-{{ post.id }}" aria-live="polite"></div>
+            <label class="comment-image-button" for="comment-audio-{{ post.id }}" title="Adicionar áudio"><span class="material-symbols-outlined" aria-hidden="true">mic</span></label>
+            <input id="comment-audio-{{ post.id }}" class="comment-image-input" type="file" name="audio" accept="audio/mpeg,audio/wav,audio/ogg,audio/webm,audio/mp4,audio/x-m4a">
+          </div>
+          <button class="primary-button small" type="submit">Comentar</button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</article>
+{% endwith %}

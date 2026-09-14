@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Editar perfil | Krampt{% endblock %}
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/perfil.css' %}">
+  <link rel="stylesheet" href="{% static 'css/editar_perfil.css' %}">
+{% endblock %}
+{% block content %}
+  {% include "includes/site_header.html" with active_page="profile" %}
+
+  <div class="app-shell">
+    {% include "includes/explore_rail.html" %}
+
+    <main class="feed edit-profile-feed">
+      <div class="feed-heading profile-page-heading">
+        <a class="profile-back-link" href="{% url 'profile:perfil' %}" aria-label="Voltar ao perfil">
+          <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+        </a>
+        <div class="profile-page-heading-text">
+          <h1>Editar perfil</h1>
+          <p>Atualize como você aparece no Krampt</p>
+        </div>
+      </div>
+
+      <div class="edit-profile-cover{% if perfil.banner %} has-banner{% endif %}">
+        {% if perfil.banner %}
+          <img class="edit-profile-cover-img" src="{{ perfil.banner.url }}" alt="Banner atual do perfil">
+        {% endif %}
+      </div>
+      <section class="edit-profile-content" aria-label="Editar informações do perfil">
+        <div class="edit-profile-avatar">
+          {% include "includes/avatar.html" with usuario=request.user avatar_class="profile-avatar" %}
+        </div>
+        <div class="edit-profile-intro">
+          <h2>Suas informações</h2>
+          <p>A foto, o nome e a bio ficam visíveis no seu perfil.</p>
+        </div>
+
+        <form class="edit-profile-form" method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="edit-profile-field field-float">
+            {{ formulario.nome }}
+            <label for="{{ formulario.nome.id_for_label }}">Nome</label>
+            {% for erro in formulario.nome.errors %}<p class="edit-profile-error" role="alert">{{ erro }}</p>{% endfor %}
+          </div>
+
+          <div class="edit-profile-field field-float">
+            {{ formulario.biografia }}
+            <label for="{{ formulario.biografia.id_for_label }}">Bio</label>
+            <p class="edit-profile-hint">Até 160 caracteres.</p>
+            {% for erro in formulario.biografia.errors %}<p class="edit-profile-error" role="alert">{{ erro }}</p>{% endfor %}
+          </div>
+
+          <div class="edit-profile-field">
+            <label for="{{ formulario.foto.id_for_label }}">Foto de perfil</label>
+            {{ formulario.foto }}
+            <p class="edit-profile-hint">JPG, PNG ou WebP, até 5 MB. Deixe vazio para manter a foto atual.</p>
+            {% for erro in formulario.foto.errors %}<p class="edit-profile-error" role="alert">{{ erro }}</p>{% endfor %}
+          </div>
+
+          {% if perfil.foto %}
+            <div class="edit-profile-checkbox">
+              {{ formulario.remover_foto }}
+              <label for="{{ formulario.remover_foto.id_for_label }}">Remover foto atual</label>
+            </div>
+            {% for erro in formulario.remover_foto.errors %}<p class="edit-profile-error" role="alert">{{ erro }}</p>{% endfor %}
+          {% endif %}
+
+          <div class="edit-profile-field">
+            <label for="{{ formulario.banner.id_for_label }}">Banner do perfil</label>
+            {{ formulario.banner }}
+            <p class="edit-profile-hint">JPG, PNG ou WebP, até 5 MB. Deixe vazio para manter o banner atual.</p>
+            {% for erro in formulario.banner.errors %}<p class="edit-profile-error" role="alert">{{ erro }}</p>{% endfor %}
+          </div>
+
+          {% if perfil.banner %}
+            <div class="edit-profile-checkbox">
+              {{ formulario.remover_banner }}
+              <label for="{{ formulario.remover_banner.id_for_label }}">Remover banner atual</label>
+            </div>
+            {% for erro in formulario.remover_banner.errors %}<p class="edit-profile-error" role="alert">{{ erro }}</p>{% endfor %}
+          {% endif %}
+
+          <div class="edit-profile-actions">
+            <a href="{% url 'profile:perfil' %}">Cancelar</a>
+            <button class="primary-button" type="submit">Salvar alterações</button>
+          </div>
+        </form>
+      </section>
+    </main>
+  </div>
+{% endblock %}
+{% block scripts %}
+  {% include "includes/header_search_script.html" %}
+  {% include "includes/account_menu_script.html" %}
+{% endblock %}

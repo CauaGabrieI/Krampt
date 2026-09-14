@@ -1,0 +1,7 @@
+<form method="post" action="{% url 'profile:seguir' usuario.pk %}">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <button class="follow-button{% if usuario.pk in seguindo_ids %} is-following{% endif %}" type="submit">
+    {% if usuario.pk in seguindo_ids %}Seguindo{% else %}Seguir{% endif %}
+  </button>
+</form>

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Buscar | Krampt{% endblock %}
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/buscar.css' %}">
+{% endblock %}
+{% block content %}
+  {% include "includes/site_header.html" %}
+
+  <div class="app-shell">
+    {% include "includes/explore_rail.html" %}
+
+    <main class="feed" id="buscar">
+      <div class="feed-heading">
+        <h1>Buscar</h1>
+      </div>
+
+      <form class="buscar-form" method="get" action="{% url 'buscar' %}" role="search">
+        <input class="buscar-input" type="search" name="q" value="{{ termo }}" placeholder="Pessoas, posts..." aria-label="Buscar pessoas e posts" autofocus>
+        <button class="primary-button" type="submit">Buscar</button>
+      </form>
+
+      {% if termo %}
+        <div class="buscar-resultados">
+          <section class="buscar-section" aria-label="Pessoas">
+            <h2>Pessoas</h2>
+            {% if pessoas %}
+              <ul class="who-to-follow">
+                {% for pessoa in pessoas %}
+                  <li>
+                    <a class="who-to-follow-link" href="{% url 'profile:perfil_publico' pessoa.username %}">
+                      {% include "includes/avatar.html" with usuario=pessoa avatar_class="avatar-small" %}
+                      <span class="who-to-follow-text">
+                        <strong>{{ pessoa.first_name|default:pessoa.username }}</strong>
+                        <span>@{{ pessoa.username }}</span>
+                      </span>
+                    </a>
+                    {% include "includes/follow_button.html" with usuario=pessoa %}
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p class="buscar-vazio">Nenhuma pessoa encontrada para “{{ termo }}”.</p>
+            {% endif %}
+          </section>
+
+          <section class="buscar-section" aria-label="Publicações">
+            <h2>Publicações</h2>
+            {% if posts %}
+              <div class="post-list">
+                {% for post in posts %}
+                  {% include "includes/post_card.html" with return_to="buscar" mostrar_comentarios=False %}
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="buscar-vazio">Nenhum post encontrado para “{{ termo }}”.</p>
+            {% endif %}
+          </section>
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <span class="empty-state-icon material-symbols-outlined" aria-hidden="true">manage_search</span>
+          <h2>Encontre pessoas e posts</h2>
+          <p>Digite um nome, @usuario ou palavra-chave para começar a busca.</p>
+        </div>
+      {% endif %}
+    </main>
+  </div>
+{% endblock %}
+{% block scripts %}
+  {% include "includes/header_search_script.html" %}
+  {% include "includes/account_menu_script.html" %}
+  {% include "includes/post_share_script.html" %}
+{% endblock %}

@@ -1,0 +1,5 @@
+{% for foto in post.post_original.fotos %}
+  <a class="profile-media-item" href="{% url 'posts:detalhe' post.id %}?foto={{ forloop.counter }}" aria-label="Ver foto {{ forloop.counter }} da publicação de {{ post.autor.username }}">
+    <img src="{{ foto.url }}" alt="Imagem {{ forloop.counter }} da publicação de {{ post.autor.username }}" loading="lazy">
+  </a>
+{% endfor %}

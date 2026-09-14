@@ -1,0 +1,88 @@
+{% load static %}
+<div class="post-comments">
+  {% if original.comentarios_raiz %}
+  <div class="comments-list">
+    {% for comentario in original.comentarios_raiz %}
+      <div class="comment-item">
+        <div class="comment-header">
+          <div class="comment-author">
+            {% include "includes/avatar.html" with usuario=comentario.autor avatar_class="comment-avatar" %}
+            <strong>{{ comentario.autor.first_name|default:comentario.autor.username }}</strong>
+            <span class="comment-author-handle">@{{ comentario.autor.username }}</span>
+          </div>
+          <form method="post" action="{% url 'posts:curtir_comentario' comentario.id %}" data-async-action data-action-type="comment-like">
+            {% csrf_token %}
+            <input type="hidden" name="return_to" value="{{ return_to }}">
+            <input type="hidden" name="entry_id" value="{{ post.id }}">
+            <button class="post-action comment-like{% if comentario.curtido_pelo_usuario %} is-liked{% endif %}" type="submit" aria-label="{% if comentario.curtido_pelo_usuario %}Descurtir comentário{% else %}Curtir comentário{% endif %}" aria-pressed="{% if comentario.curtido_pelo_usuario %}true{% else %}false{% endif %}">
+              <span class="material-symbols-outlined" aria-hidden="true">favorite</span>
+              <span>{{ comentario.total_curtidas }}</span>
+            </button>
+          </form>
+          {% if comentario.autor == request.user %}
+            <form method="post" action="{% url 'posts:excluir_comentario' comentario.id %}" data-async-action data-action-type="delete-comment">
+              {% csrf_token %}
+              <input type="hidden" name="return_to" value="{{ return_to }}">
+              <input type="hidden" name="entry_id" value="{{ post.id }}">
+              <button class="comment-delete" type="submit" aria-label="Excluir comentário" title="Excluir comentário">
+                <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+              </button>
+            </form>
+          {% endif %}
+        </div>
+        {% if comentario.conteudo %}<p>{{ comentario.conteudo|linebreaksbr }}</p>{% endif %}
+        {% if comentario.imagem %}<img class="comment-image" src="{{ comentario.imagem.url }}" alt="Imagem anexada ao comentário">{% endif %}
+        {% if comentario.audio %}<audio class="comment-audio" controls preload="metadata" src="{{ comentario.audio.url }}">Seu navegador não suporta áudio.</audio>{% endif %}
+
+        {% if comentario.respostas.exists %}
+          <div class="comment-replies">
+            {% for resposta in comentario.respostas.all %}
+              <div class="comment-reply">
+                <div class="comment-reply-author">
+                  {% include "includes/avatar.html" with usuario=resposta.autor avatar_class="reply-avatar" %}
+                  <div>
+                    <strong>{{ resposta.autor.first_name|default:resposta.autor.username }}</strong>
+                    <span>@{{ resposta.autor.username }}</span>
+                  </div>
+                </div>
+                {% if resposta.conteudo %}<p>{{ resposta.conteudo|linebreaksbr }}</p>{% endif %}
+                {% if resposta.imagem %}<img class="comment-image" src="{{ resposta.imagem.url }}" alt="Imagem anexada à resposta">{% endif %}
+                {% if resposta.audio %}<audio class="comment-audio" controls preload="metadata" src="{{ resposta.audio.url }}">Seu navegador não suporta áudio.</audio>{% endif %}
+                {% if resposta.autor == request.user %}
+                  <form method="post" action="{% url 'posts:excluir_comentario' resposta.id %}" data-async-action data-action-type="delete-comment">
+                    {% csrf_token %}
+                    <input type="hidden" name="return_to" value="{{ return_to }}">
+                    <input type="hidden" name="entry_id" value="{{ post.id }}">
+                    <button class="comment-delete" type="submit" aria-label="Excluir resposta" title="Excluir resposta">
+                      <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                    </button>
+                  </form>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <form class="comment-reply-form field-float" method="post" action="{% url 'posts:responder_comentario' comentario.id %}" enctype="multipart/form-data" data-submit-once>
+          {% csrf_token %}
+          <input type="hidden" name="return_to" value="{{ return_to }}">
+          <input type="hidden" name="entry_id" value="{{ post.id }}">
+          <textarea id="reply-{{ comentario.id }}" name="conteudo" rows="1" maxlength="280" placeholder=" "></textarea>
+          <label for="reply-{{ comentario.id }}">Responder</label>
+          <div class="comment-compose-tools">
+            <button class="emoji-button" type="button" data-emoji-target="reply-{{ comentario.id }}" aria-label="Adicionar emoji"><img src="{% static 'imgs/sorrir.png' %}" alt=""></button>
+            <label class="comment-image-button" for="reply-image-{{ comentario.id }}" title="Adicionar imagem ou GIF"><span class="material-symbols-outlined" aria-hidden="true">image</span></label>
+            <input id="reply-image-{{ comentario.id }}" class="comment-image-input" type="file" name="imagem" accept="image/jpeg,image/png,image/webp,image/gif">
+            <div class="comment-media-preview" data-media-preview-for="reply-image-{{ comentario.id }}" aria-live="polite"></div>
+            <label class="comment-image-button" for="reply-audio-{{ comentario.id }}" title="Adicionar áudio"><span class="material-symbols-outlined" aria-hidden="true">mic</span></label>
+            <input id="reply-audio-{{ comentario.id }}" class="comment-image-input" type="file" name="audio" accept="audio/mpeg,audio/wav,audio/ogg,audio/webm,audio/mp4,audio/x-m4a">
+          </div>
+          <button class="primary-button small" type="submit">Responder</button>
+        </form>
+      </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    <p class="comment-empty">Ainda não há comentários.</p>
+  {% endif %}
+</div>

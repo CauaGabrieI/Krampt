@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}#{{ hashtag.nome }} | Krampt{% endblock %}
+{% block content %}
+  {% include "includes/site_header.html" %}
+
+  <div class="app-shell">
+    {% include "includes/explore_rail.html" %}
+
+    <main class="feed" id="hashtag">
+      <div class="feed-heading">
+        <h1>#{{ hashtag.nome }}</h1>
+      </div>
+
+      <div class="post-list">
+        {% for post in posts %}
+          {% include "includes/post_card.html" with return_to="home" mostrar_comentarios=False %}
+        {% empty %}
+          <div class="empty-state">
+            <h2>Nenhuma publicação encontrada</h2>
+            <p>Ainda não há posts com esta hashtag.</p>
+          </div>
+        {% endfor %}
+      </div>
+    </main>
+  </div>
+{% endblock %}
+{% block scripts %}
+  {% include "includes/header_search_script.html" %}
+  {% include "includes/account_menu_script.html" %}
+  {% include "includes/post_share_script.html" %}
+{% endblock %}

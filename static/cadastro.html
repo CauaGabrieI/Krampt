@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Criar conta | Krampt{% endblock %}
+{% block body_class %}auth-page{% endblock %}
+{% block content %}
+  <div class="auth-layout">
+    <aside class="auth-story">
+      <a class="brand" href="{% url 'login:login' %}" aria-label="Krampt">
+        <img class="brand-mark" src="{% static 'imgs/logo.png' %}" alt="">
+        <span>Krampt</span>
+      </a>
+      <div class="auth-story-content">
+        <h1>Entre na conversa.</h1>
+        <p>Crie sua conta e compartilhe o que você pensa com a comunidade.</p>
+      </div>
+      <small>Seu espaço, sua voz.</small>
+    </aside>
+
+    <main class="auth-panel">
+      <p class="eyebrow">Comece por aqui</p>
+      <h2>Crie sua conta</h2>
+      <p class="auth-subtitle">Preencha seus dados para participar do Krampt.</p>
+
+      <form class="auth-form" method="post">
+        {% csrf_token %}
+        <div class="form-group field-float">
+          <input type="text" id="name" name="name" placeholder=" " autocomplete="given-name" required>
+          <label for="name">Nome</label>
+        </div>
+        <div class="form-group field-float">
+          <input type="text" id="username" name="username" placeholder=" " autocomplete="username" required>
+          <label for="username">Usuário</label>
+        </div>
+        <div class="form-group field-float">
+          <input type="email" id="email" name="email" placeholder=" " autocomplete="email" required>
+          <label for="email">E-mail</label>
+        </div>
+        <div class="form-group field-float">
+          <input type="password" id="password" name="password" placeholder=" " autocomplete="new-password" required>
+          <label for="password">Senha</label>
+        </div>
+        <div class="form-group field-float">
+          <input type="password" id="password_confirm" name="password_confirm" placeholder=" " autocomplete="new-password" required>
+          <label for="password_confirm">Confirmar senha</label>
+        </div>
+        <button class="primary-button" type="submit">Criar conta</button>
+      </form>
+
+      <p class="auth-switch">Já tem uma conta? <a href="{% url 'login:login' %}">Entrar</a></p>
+    </main>
+  </div>
+{% endblock %}

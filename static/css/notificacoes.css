@@ -1,0 +1,19 @@
+.notificacoes-list { display: grid; }
+.notificacao-item {
+  display: flex;
+  gap: 14px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+a.notificacao-item:hover { background: var(--surface-raised); }
+.notificacao-icon { display: grid; flex: 0 0 auto; place-items: center; width: 38px; height: 38px; border-radius: 50%; color: var(--primary-light); background: rgba(124, 58, 237, .12); }
+.notificacao-icon .material-symbols-outlined { font-size: 20px; }
+.notificacao-icon--curtida,
+.notificacao-icon--curtida_comentario { color: #ff7d9c; background: rgba(255, 125, 156, .12); }
+.notificacao-body { display: flex; flex: 1; align-items: flex-start; gap: 10px; min-width: 0; }
+.notificacao-body .avatar { flex: 0 0 auto; }
+.notificacao-text { min-width: 0; }
+.notificacao-text p { margin: 0; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.notificacao-text span { color: var(--subtle); font-size: 12px; }
+.notify-empty { padding: 44px 24px; }

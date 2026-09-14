@@ -1,0 +1,37 @@
+{% load static %}
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="{% url 'home' %}" aria-label="Krampt, voltar ao feed">
+      <img class="brand-mark" src="{% static 'imgs/logo.png' %}" alt="">
+      <span>Krampt</span>
+    </a>
+    <div class="header-center">
+      <nav class="header-nav" aria-label="Navegação principal">
+        <a{% if active_page == 'home' %} class="is-current" aria-current="page"{% endif %} href="{% url 'home' %}">Início</a>
+        <a class="header-messages{% if active_page == 'mensagens' %} is-current{% endif %}"{% if active_page == 'mensagens' %} aria-current="page"{% endif %} href="{% url 'mensagens:lista' %}" aria-label="Mensagens{% if mensagens_nao_lidas %} ({{ mensagens_nao_lidas }} não lidas){% endif %}">
+          Mensagens
+          {% if mensagens_nao_lidas %}
+            <span class="header-messages-badge" aria-hidden="true">{% if mensagens_nao_lidas > 99 %}99+{% else %}{{ mensagens_nao_lidas }}{% endif %}</span>
+          {% endif %}
+        </a>
+      </nav>
+      <div class="header-search">
+        <button class="search-trigger" type="button" aria-label="Abrir pesquisa" aria-expanded="false" aria-controls="header-search-input">
+          <span class="material-symbols-outlined" aria-hidden="true">search</span>
+        </button>
+        <form class="header-search-form" method="get" action="{% url 'buscar' %}" role="search">
+          <input class="header-search-input" id="header-search-input" name="q" type="search" placeholder="Pesquisar..." aria-label="Pesquisar no Krampt" autocomplete="off" tabindex="-1" aria-hidden="true">
+        </form>
+      </div>
+    </div>
+    <div class="header-actions">
+      <a class="header-bell" href="{% url 'notificacoes:lista' %}" aria-label="Notificações{% if notificacoes_nao_lidas %} ({{ notificacoes_nao_lidas }} não lidas){% endif %}">
+        <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
+        {% if notificacoes_nao_lidas %}
+          <span class="header-bell-badge" aria-hidden="true">{{ notificacoes_nao_lidas }}</span>
+        {% endif %}
+      </a>
+      {% include "includes/account_menu.html" with menu_id="header-account-menu" %}
+    </div>
+  </div>
+</header>

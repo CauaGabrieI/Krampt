@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Mensagens | Krampt{% endblock %}
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/mensagens.css' %}?v=shared-feed-width-1">
+{% endblock %}
+{% block content %}
+  {% include "includes/site_header.html" with active_page="mensagens" %}
+
+  <div class="app-shell">
+    {% include "includes/explore_rail.html" %}
+
+    <main class="feed dm-feed" id="mensagens">
+      <div class="dm-heading">
+        <div class="dm-heading-copy">
+          <h1>Mensagens</h1>
+          <p>Suas conversas privadas no Krampt</p>
+        </div>
+        <a class="dm-new-button" href="{% url 'mensagens:nova' %}">Nova conversa</a>
+      </div>
+
+      <div class="dm-list-tools">
+        <label class="dm-search" for="dm-search-input">
+          <span class="material-symbols-outlined" aria-hidden="true">search</span>
+          <input id="dm-search-input" type="search" placeholder="Buscar conversas" autocomplete="off">
+        </label>
+        <div class="dm-filter-row" aria-label="Filtros de mensagens">
+          <a class="dm-filter{% if filtro == 'todas' %} is-active{% endif %}" href="{% url 'mensagens:lista' %}"{% if filtro == 'todas' %} aria-current="page"{% endif %}>Tudo</a>
+          <a class="dm-filter{% if filtro == 'nao_lidas' %} is-active{% endif %}" href="{% url 'mensagens:lista' %}?filtro=nao_lidas"{% if filtro == 'nao_lidas' %} aria-current="page"{% endif %}>Não lidas</a>
+        </div>
+      </div>
+
+      {% if conversas %}
+        <ul class="dm-list">
+          {% for item in conversas %}
+            <li>
+              <a class="dm-item" href="{% url 'mensagens:detalhe' item.conversa.pk %}" data-conversation-name="{{ item.outra_pessoa.first_name|default:item.outra_pessoa.username }} @{{ item.outra_pessoa.username }}">
+                {% include "includes/avatar.html" with usuario=item.outra_pessoa %}
+                <div class="dm-item-main">
+                  <div class="dm-item-top">
+                    <strong>{{ item.outra_pessoa.first_name|default:item.outra_pessoa.username }}</strong>
+                    {% if item.ultima %}
+                      <time datetime="{{ item.ultima.criada_em|date:'c' }}">{{ item.ultima.criada_em|date:"H:i" }}</time>
+                    {% endif %}
+                  </div>
+                  <div class="dm-item-bottom">
+                    {% if item.ultima %}
+                      <span class="dm-last{% if item.nao_lidas %} is-unread{% endif %}">
+                        {% if item.ultima.autor == request.user %}Você: {% endif %}{{ item.ultima.conteudo }}
+                      </span>
+                    {% else %}
+                      <span class="dm-last">Inicie a conversa</span>
+                    {% endif %}
+                    {% if item.nao_lidas %}
+                      <span class="dm-unread-badge" aria-label="{{ item.nao_lidas }} não lidas">{{ item.nao_lidas }}</span>
+                    {% endif %}
+                  </div>
+                </div>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="empty-state">
+          <span class="empty-state-icon material-symbols-outlined" aria-hidden="true">forum</span>
+          {% if filtro == 'nao_lidas' %}
+            <h2>Tudo em dia</h2>
+            <p>Você não tem mensagens não lidas.</p>
+            <a class="dm-new-button" href="{% url 'mensagens:lista' %}">Ver todas</a>
+          {% else %}
+            <h2>Nenhuma conversa ainda</h2>
+            <p>Comece uma conversa privada com quem você segue.</p>
+            <a class="dm-new-button" href="{% url 'mensagens:nova' %}">Nova conversa</a>
+          {% endif %}
+        </div>
+      {% endif %}
+      <div class="dm-shield">
+        <span class="material-symbols-outlined" aria-hidden="true">lock</span>
+        <span>As conversas são privadas entre os participantes.</span>
+      </div>
+    </main>
+  </div>
+{% endblock %}
+{% block scripts %}
+  {% include "includes/header_search_script.html" %}
+  {% include "includes/account_menu_script.html" %}
+  <script>
+    const busca = document.querySelector('#dm-search-input');
+    const conversas = document.querySelectorAll('[data-conversation-name]');
+    if (busca) busca.addEventListener('input', () => {
+      const termo = busca.value.toLocaleLowerCase('pt-BR').trim();
+      conversas.forEach((conversa) => {
+        conversa.closest('li').hidden = !conversa.dataset.conversationName.toLocaleLowerCase('pt-BR').includes(termo);
+      });
+    });
+  </script>
+{% endblock %}

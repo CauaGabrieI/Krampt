@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Discussão | Krampt{% endblock %}
+{% block content %}
+  {% include "includes/site_header.html" with active_page="home" %}
+  <div class="app-shell">
+    {% include "includes/explore_rail.html" %}
+    <main class="feed" id="post-detail">
+      <div class="feed-heading post-detail-heading">
+        <a class="profile-back-link" href="{% url 'home' %}" aria-label="Voltar ao início">
+          <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+        </a>
+        <h1>Discussão</h1>
+      </div>
+      {% with original=post.post_original %}
+        {% include "includes/post_card.html" with return_to="post" mostrar_comentarios=True %}
+        {% include "includes/post_comments.html" with return_to="post" %}
+      {% endwith %}
+    </main>
+  </div>
+{% endblock %}
+{% block scripts %}
+  {% include "includes/header_search_script.html" %}
+  {% include "includes/account_menu_script.html" %}
+  {% include "includes/post_share_script.html" %}
+{% endblock %}

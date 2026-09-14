@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ perfil_usuario.first_name|default:perfil_usuario.username }} | Krampt{% endblock %}
+{% block body_class %}profile-page{% endblock %}
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/perfil.css' %}?v=profile-tabs-1">
+{% endblock %}
+{% block content %}
+  {% include "includes/site_header.html" %}
+
+  <div class="app-shell">
+    {% include "includes/explore_rail.html" %}
+
+    <main class="feed profile-feed" id="perfil">
+      {% with total=total_posts %}
+        <div class="feed-heading profile-page-heading">
+          <a class="profile-back-link" href="{% url 'home' %}" aria-label="Voltar ao início">
+            <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+          </a>
+          <div class="profile-page-heading-text">
+            <h1>{{ perfil_usuario.first_name|default:perfil_usuario.username }}</h1>
+            <p>{{ total }} {% if total == 1 %}post{% else %}posts{% endif %}</p>
+          </div>
+        </div>
+
+        {% if perfil.banner %}
+          <div class="profile-cover has-banner">
+            <img class="profile-cover-img" src="{{ perfil.banner.url }}" alt="Banner de {{ perfil_usuario.first_name|default:perfil_usuario.username }}">
+          </div>
+        {% else %}
+          <div class="profile-cover" aria-hidden="true"></div>
+        {% endif %}
+
+        <section class="profile-summary" aria-label="Informações do perfil">
+          <div class="profile-summary-top">
+            {% include "includes/avatar.html" with usuario=perfil_usuario avatar_class="profile-avatar" %}
+            <div class="profile-summary-actions">
+              {% include "includes/follow_button.html" with usuario=perfil_usuario %}
+            </div>
+          </div>
+          <h2>{{ perfil_usuario.first_name|default:perfil_usuario.username }}</h2>
+          <p class="profile-handle">@{{ perfil_usuario.username }}</p>
+          {% if perfil.biografia %}<p class="profile-bio">{{ perfil.biografia|linebreaksbr }}</p>{% endif %}
+          <p class="profile-joined">
+            <span class="material-symbols-outlined" aria-hidden="true">calendar_month</span>
+            Entrou em {{ perfil_usuario.date_joined|date:"F \d\e Y" }}
+          </p>
+          <p class="profile-count"><strong>{{ total_publicacoes }}</strong> {% if total_publicacoes == 1 %}publicação{% else %}publicações{% endif %} · <strong>{{ seguindo }}</strong> seguindo · <strong>{{ seguidores }}</strong> seguidores</p>
+        </section>
+      {% endwith %}
+
+      {% include "includes/profile_tabs.html" %}
+
+      <section class="{% if aba == 'midia' %}profile-media-grid{% else %}post-list{% endif %}" aria-label="{% if aba == 'repostados' %}Republicações{% elif aba == 'midia' %}Mídia{% else %}Publicações{% endif %} de {{ perfil_usuario.username }}">
+        {% for post in posts %}
+          {% if aba == 'midia' %}
+            {% include "includes/profile_media.html" %}
+          {% else %}
+            {% include "includes/post_card.html" with return_to="perfil" mostrar_comentarios=False %}
+          {% endif %}
+        {% empty %}
+          <div class="empty-state">
+            <span class="empty-state-icon material-symbols-outlined" aria-hidden="true">{% if aba == 'repostados' %}repeat{% elif aba == 'midia' %}image{% else %}edit_square{% endif %}</span>
+            {% if aba == 'repostados' %}
+              <h2>Nenhuma republicação ainda</h2>
+              <p>Os posts republicados aparecerão aqui.</p>
+            {% elif aba == 'midia' %}
+              <h2>Nenhuma imagem ainda</h2>
+              <p>As publicações com foto aparecerão aqui.</p>
+            {% else %}
+              <h2>{{ perfil_usuario.first_name|default:perfil_usuario.username }} ainda não publicou nada</h2>
+              <p>Quando publicar, os posts aparecerão aqui.</p>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </section>
+    </main>
+  </div>
+{% endblock %}
+{% block scripts %}
+  {% include "includes/header_search_script.html" %}
+  {% include "includes/account_menu_script.html" %}
+  {% include "includes/post_share_script.html" %}
+{% endblock %}

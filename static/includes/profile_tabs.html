@@ -1,0 +1,18 @@
+{% load static %}
+<nav class="profile-tabs" aria-label="Conteúdo do perfil">
+  <a class="profile-tab{% if aba == 'publicacoes' %} is-active{% endif %}" href="{{ request.path }}"{% if aba == 'publicacoes' %} aria-current="page"{% endif %}>
+    Publicações <span>{{ total_publicacoes }}</span>
+  </a>
+  <a class="profile-tab{% if aba == 'repostados' %} is-active{% endif %}" href="{{ request.path }}?aba=repostados"{% if aba == 'repostados' %} aria-current="page"{% endif %}>
+    Repostados <span>{{ total_repostados }}</span>
+  </a>
+  <a class="profile-tab{% if aba == 'midia' %} is-active{% endif %}" href="{{ request.path }}?aba=midia"{% if aba == 'midia' %} aria-current="page"{% endif %}>
+    Mídia <span>{{ total_midia }}</span>
+  </a>
+  {% if pode_ver_salvos %}
+    <a class="profile-tab profile-tab-saved{% if aba == 'salvos' %} is-active{% endif %}" href="{{ request.path }}?aba=salvos"{% if aba == 'salvos' %} aria-current="page"{% endif %}>
+      <img src="{% static 'imgs/marca-paginas.png' %}" alt="" aria-hidden="true">
+      Salvos <span>{{ total_salvos }}</span>
+    </a>
+  {% endif %}
+</nav>

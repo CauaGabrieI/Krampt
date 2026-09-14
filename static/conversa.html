@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Conversa com {{ outra_pessoa.first_name|default:outra_pessoa.username }} | Krampt{% endblock %}
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/mensagens.css' %}?v=conversation-scroll-1">
+{% endblock %}
+{% block body_class %}dm-conversation-page{% endblock %}
+{% block content %}
+  {% include "includes/site_header.html" with active_page="mensagens" %}
+
+  <div class="app-shell">
+    {% include "includes/explore_rail.html" %}
+
+    <main class="feed dm-feed" id="conversa">
+      <div class="dm-heading dm-conversation-heading">
+        <a class="dm-back" href="{% url 'mensagens:lista' %}" aria-label="Voltar às mensagens">
+          <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+        </a>
+        <a class="dm-conversation-person" href="{% url 'profile:perfil_publico' outra_pessoa.username %}">
+          {% include "includes/avatar.html" with usuario=outra_pessoa %}
+          <div>
+            <strong>{{ outra_pessoa.first_name|default:outra_pessoa.username }}</strong>
+            <span>@{{ outra_pessoa.username }}</span>
+          </div>
+        </a>
+      </div>
+
+      <ul class="dm-thread" tabindex="0" aria-label="Mensagens com {{ outra_pessoa.first_name|default:outra_pessoa.username }}">
+        <li class="dm-introduction">
+          {% include "includes/avatar.html" with usuario=outra_pessoa %}
+          <h2>{{ outra_pessoa.first_name|default:outra_pessoa.username }}</h2>
+          <p class="dm-handle">@{{ outra_pessoa.username }}</p>
+          {% if outra_pessoa.perfil.biografia %}<p class="dm-bio">{{ outra_pessoa.perfil.biografia }}</p>{% endif %}
+        </li>
+        {% for mensagem in mensagens %}
+          <li class="dm-bubble {% if mensagem.autor == request.user %}is-mine{% endif %}" id="mensagem-{{ mensagem.pk }}">
+            {% if mensagem.autor != request.user %}
+              {% include "includes/avatar.html" with usuario=mensagem.autor %}
+            {% endif %}
+            <div class="dm-bubble-main">
+              <p class="dm-bubble-text">{{ mensagem.conteudo|linebreaksbr }}</p>
+              <div class="dm-bubble-meta">
+                <time datetime="{{ mensagem.criada_em|date:'c' }}">{{ mensagem.criada_em|date:"d/m H:i" }}</time>
+                {% if mensagem.autor == request.user and mensagem.lida %}<span>Lida</span>{% endif %}
+              </div>
+            </div>
+          </li>
+        {% empty %}
+          <li class="empty-state dm-empty">
+            <span class="empty-state-icon material-symbols-outlined" aria-hidden="true">forum</span>
+            <h2>Comece a conversa</h2>
+            <p>Sem mensagens ainda. Diga oi para {{ outra_pessoa.first_name|default:outra_pessoa.username }}!</p>
+          </li>
+        {% endfor %}
+      </ul>
+
+      <form class="dm-composer" method="post" action="{% url 'mensagens:detalhe' conversa.pk %}" aria-label="Enviar mensagem">
+        {% csrf_token %}
+        {{ formulario.conteudo }}
+        <button class="primary-button dm-send" type="submit" aria-label="Enviar mensagem">
+          <span class="material-symbols-outlined" aria-hidden="true">send</span>
+        </button>
+      </form>
+      {% for erro in formulario.conteudo.errors %}<p class="dm-compose-error" role="alert">{{ erro }}</p>{% endfor %}
+    </main>
+  </div>
+{% endblock %}
+{% block scripts %}
+  {% include "includes/header_search_script.html" %}
+  {% include "includes/account_menu_script.html" %}
+  <script>
+    const ultima = document.querySelector('.dm-thread .dm-bubble:last-of-type');
+    const thread = document.querySelector('.dm-thread');
+    if (ultima && thread) thread.scrollTop = thread.scrollHeight;
+    const input = document.querySelector('.dm-composer textarea');
+    const composer = document.querySelector('.dm-composer');
+    if (input) {
+      input.focus({ preventScroll: true });
+      input.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+        event.preventDefault();
+        composer.requestSubmit();
+      });
+    }
+  </script>
+{% endblock %}

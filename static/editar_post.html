@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Editar post | Krampt{% endblock %}
+{% block content %}
+  {% include "includes/site_header.html" %}
+  <div class="app-shell">
+    {% include "includes/explore_rail.html" %}
+    <main class="feed edit-post-page">
+      <div class="feed-heading"><h1>Editar post</h1></div>
+      <form class="edit-post-form" method="post">
+        {% csrf_token %}
+        <label for="id_conteudo">Texto do post</label>
+        {{ formulario.conteudo }}
+        {% for erro in formulario.conteudo.errors %}<p class="form-error">{{ erro }}</p>{% endfor %}
+        <div class="edit-post-actions">
+          <a class="secondary-button" href="{{ request.GET.next|default:'/' }}">Cancelar</a>
+          <button class="primary-button" type="submit">Salvar alterações</button>
+        </div>
+      </form>
+    </main>
+  </div>
+{% endblock %}

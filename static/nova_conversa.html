@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Nova conversa | Krampt{% endblock %}
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/mensagens.css' %}?v=shared-feed-width-1">
+{% endblock %}
+{% block content %}
+  {% include "includes/site_header.html" with active_page="mensagens" %}
+
+  <div class="app-shell">
+    {% include "includes/explore_rail.html" %}
+
+    <main class="feed dm-feed" id="nova-conversa">
+      <div class="dm-heading">
+        <a class="dm-back" href="{% url 'mensagens:lista' %}" aria-label="Voltar às mensagens">
+          <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+        </a>
+        <div>
+          <h1>Nova conversa</h1>
+          <p>Selecione alguém para iniciar uma conversa</p>
+        </div>
+      </div>
+
+      {% if pessoas %}
+        <ul class="dm-list">
+          {% for pessoa in pessoas %}
+            <li>
+              <form class="dm-person-form" method="post" action="{% url 'mensagens:nova' %}">
+                {% csrf_token %}
+                <input type="hidden" name="usuario_id" value="{{ pessoa.pk }}">
+                <button type="submit" class="dm-item dm-person-button">
+                  {% include "includes/avatar.html" with usuario=pessoa %}
+                  <div class="dm-item-main">
+                    <div class="dm-item-top">
+                      <strong>{{ pessoa.first_name|default:pessoa.username }}</strong>
+                      <span>@{{ pessoa.username }}</span>
+                    </div>
+                    <div class="dm-item-bottom">
+                      <span class="dm-last">Iniciar conversa</span>
+                    </div>
+                  </div>
+                </button>
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="empty-state">
+          <span class="empty-state-icon material-symbols-outlined" aria-hidden="true">group_add</span>
+          <h2>Ninguém para conversar</h2>
+          <p>Você ainda não segue ninguém. Comece a seguir pessoas no painel ao lado.</p>
+        </div>
+      {% endif %}
+    </main>
+  </div>
+{% endblock %}
+{% block scripts %}
+  {% include "includes/header_search_script.html" %}
+  {% include "includes/account_menu_script.html" %}
+{% endblock %}

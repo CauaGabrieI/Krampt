@@ -1,0 +1,231 @@
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
+from django.test import RequestFactory, TestCase
+from django.urls import reverse
+
+from mensagens.models import Conversa, Mensagem
+from mensagens.context_processors import mensagens_nao_lidas
+from profile.models import Perfil
+
+User = get_user_model()
+
+
+class CriarConversaTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.caua = User.objects.create_user(username="caua", password="senha")
+        cls.maria = User.objects.create_user(username="maria", password="senha")
+
+    def test_criar_conversa_exige_login(self):
+        response = self.client.get(reverse("mensagens:nova"))
+
+        self.assertEqual(response.status_code, 302)
+
+    def test_criar_conversa_redireciona_para_a_conversa_criada(self):
+        self.client.force_login(self.caua)
+
+        response = self.client.post(
+            reverse("mensagens:nova"), {"usuario_id": self.maria.pk}
+        )
+
+        self.assertEqual(response.status_code, 302)
+        conversa = (
+            Conversa.objects.filter(participantes=self.caua)
+            .filter(participantes=self.maria)
+            .first()
+        )
+        self.assertIsNotNone(conversa)
+        self.assertEqual(conversa.chave, f"{min(self.caua.pk, self.maria.pk)}:{max(self.caua.pk, self.maria.pk)}")
+        self.assertRedirects(
+            response, reverse("mensagens:detalhe", args=[conversa.pk])
+        )
+
+    def test_criar_conversa_reutiliza_a_existente(self):
+        self.client.force_login(self.caua)
+        conversa = Conversa.objects.create()
+        conversa.participantes.add(self.caua, self.maria)
+
+        response = self.client.post(
+            reverse("mensagens:nova"), {"usuario_id": self.maria.pk}
+        )
+
+        self.assertEqual(
+            Conversa.objects.filter(participantes=self.caua)
+            .filter(participantes=self.maria)
+            .count(),
+            1,
+        )
+        self.assertRedirects(
+            response, reverse("mensagens:detalhe", args=[conversa.pk])
+        )
+
+    def test_criar_conversa_com_usuario_inexistente_redireciona(self):
+        self.client.force_login(self.caua)
+
+        response = self.client.post(
+            reverse("mensagens:nova"), {"usuario_id": 9999}
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_nao_cria_conversa_com_a_propria_conta(self):
+        self.client.force_login(self.caua)
+
+        response = self.client.post(
+            reverse("mensagens:criar"), {"usuario_id": self.caua.pk}
+        )
+
+        self.assertRedirects(response, reverse("mensagens:lista"))
+        self.assertFalse(Conversa.objects.exists())
+
+    def test_abrir_nova_conversa_nao_cria_perfil(self):
+        self.client.force_login(self.caua)
+
+        response = self.client.get(reverse("mensagens:nova"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Perfil.objects.filter(usuario=self.caua).exists())
+
+
+class ConversaTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.caua = User.objects.create_user(username="caua", password="senha")
+        cls.maria = User.objects.create_user(username="maria", password="senha")
+        cls.ricardo = User.objects.create_user(username="ricardo", password="senha")
+        cls.conversa = Conversa.objects.create()
+        cls.conversa.participantes.add(cls.caua, cls.maria)
+        Mensagem.objects.create(
+            conversa=cls.conversa, autor=cls.caua, conteudo="Oi, Maria!"
+        )
+
+    def test_so_quem_participa_acessa_a_conversa(self):
+        self.client.force_login(self.ricardo)
+
+        response = self.client.get(
+            reverse("mensagens:detalhe", args=[self.conversa.pk])
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_aviso_no_header_conta_so_recebidas_nao_lidas(self):
+        Mensagem.objects.create(conversa=self.conversa, autor=self.maria, conteudo="Nova")
+        Mensagem.objects.create(conversa=self.conversa, autor=self.maria, conteudo="Já lida", lida=True)
+        outra = Conversa.objects.create()
+        outra.participantes.add(self.maria, self.ricardo)
+        Mensagem.objects.create(conversa=outra, autor=self.maria, conteudo="Privada")
+        self.client.force_login(self.caua)
+
+        for url in [reverse("home"), reverse("mensagens:lista")]:
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.context["mensagens_nao_lidas"], 1)
+                self.assertContains(response, 'aria-label="Mensagens (1 não lidas)"')
+                self.assertContains(response, '<span class="header-messages-badge" aria-hidden="true">1</span>', html=True)
+
+    def test_aviso_diminui_ao_ler_e_some_quando_nao_ha_pendencias(self):
+        Mensagem.objects.create(conversa=self.conversa, autor=self.maria, conteudo="Nova")
+        outra = Conversa.objects.create()
+        outra.participantes.add(self.caua, self.ricardo)
+        Mensagem.objects.create(conversa=outra, autor=self.ricardo, conteudo="Outra nova")
+        self.client.force_login(self.caua)
+
+        response = self.client.get(reverse("mensagens:lista"))
+        self.assertEqual(response.context["mensagens_nao_lidas"], 2)
+        response = self.client.get(reverse("mensagens:detalhe", args=[self.conversa.pk]))
+        self.assertEqual(response.context["mensagens_nao_lidas"], 1)
+        response = self.client.get(reverse("mensagens:detalhe", args=[outra.pk]))
+        self.assertEqual(response.context["mensagens_nao_lidas"], 0)
+        self.assertNotContains(response, 'class="header-messages-badge"')
+
+    def test_contador_anonimo_nao_consulta_mensagens(self):
+        request = RequestFactory().get("/")
+        request.user = AnonymousUser()
+        with self.assertNumQueries(0):
+            self.assertEqual(mensagens_nao_lidas(request), {})
+
+    def test_envia_mensagem_e_exibe_a_conversa(self):
+        self.client.force_login(self.caua)
+
+        response = self.client.post(
+            reverse("mensagens:detalhe", args=[self.conversa.pk]),
+            {"conteudo": "Tudo bem?"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            Mensagem.objects.filter(autor=self.caua, conteudo="Tudo bem?").exists()
+        )
+
+    def test_mensagem_vazia_nao_e_enviada(self):
+        self.client.force_login(self.caua)
+
+        response = self.client.post(
+            reverse("mensagens:detalhe", args=[self.conversa.pk]),
+            {"conteudo": "   "},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Este campo é obrigatório")
+        self.assertFalse(Mensagem.objects.filter(conteudo="   ").exists())
+
+    def test_mensagem_longa_mostra_erro_sem_salvar(self):
+        self.client.force_login(self.caua)
+
+        response = self.client.post(
+            reverse("mensagens:detalhe", args=[self.conversa.pk]),
+            {"conteudo": "x" * 281},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["formulario"].errors)
+        self.assertEqual(self.conversa.mensagens.count(), 1)
+
+    def test_nao_participante_nao_pode_enviar(self):
+        self.client.force_login(self.ricardo)
+
+        response = self.client.post(
+            reverse("mensagens:detalhe", args=[self.conversa.pk]),
+            {"conteudo": "Tentativa de acesso"},
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(Mensagem.objects.filter(autor=self.ricardo).exists())
+
+    def test_mensagens_ficam_lidas_ao_abrir_a_conversa(self):
+        Mensagem.objects.create(
+            conversa=self.conversa, autor=self.maria, conteudo="Oi!", lida=False
+        )
+        self.client.force_login(self.caua)
+
+        self.client.get(reverse("mensagens:detalhe", args=[self.conversa.pk]))
+
+        self.assertFalse(
+            Mensagem.objects.filter(conversa=self.conversa, autor=self.maria, lida=False).exists()
+        )
+
+    def test_lista_ordena_pela_mensagem_mais_recente(self):
+        outra = Conversa.objects.create()
+        outra.participantes.add(self.caua, self.ricardo)
+        Mensagem.objects.create(conversa=self.conversa, autor=self.maria, conteudo="Mensagem nova")
+        self.client.force_login(self.caua)
+
+        response = self.client.get(reverse("mensagens:lista"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["conversas"][0]["conversa"], self.conversa)
+        self.assertEqual(response.context["conversas"][1]["conversa"], outra)
+
+    def test_filtro_mostra_apenas_conversas_com_nao_lidas(self):
+        outra = Conversa.objects.create()
+        outra.participantes.add(self.caua, self.ricardo)
+        Mensagem.objects.create(conversa=outra, autor=self.caua, conteudo="Enviada por mim")
+        Mensagem.objects.create(conversa=self.conversa, autor=self.maria, conteudo="Não lida")
+        self.client.force_login(self.caua)
+
+        response = self.client.get(reverse("mensagens:lista"), {"filtro": "nao_lidas"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["conversas"]), 1)
+        self.assertEqual(response.context["conversas"][0]["conversa"], self.conversa)
+        self.assertContains(response, "Não lida")

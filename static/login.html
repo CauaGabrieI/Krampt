@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Entrar | Krampt{% endblock %}
+{% block body_class %}auth-page{% endblock %}
+{% block content %}
+  <div class="auth-layout">
+    <aside class="auth-story">
+      <a class="brand" href="{% url 'login:login' %}" aria-label="Krampt">
+        <img class="brand-mark" src="{% static 'imgs/logo.png' %}" alt="">
+        <span>Krampt</span>
+      </a>
+      <div class="auth-story-content">
+        <h1>Boas conversas começam aqui.</h1>
+        <p>Um espaço para publicar ideias, encontrar pessoas e acompanhar o que importa para você.</p>
+      </div>
+      
+    </aside>
+
+    <main class="auth-panel">
+      <p class="eyebrow">Bem-vindo de volta</p>
+      <h2>Entre no Krampt</h2>
+      <p class="auth-subtitle">Acesse sua conta para ver o feed e publicar.</p>
+
+      {% if erro %}
+        <div class="error-message" role="alert">{{ erro }}</div>
+      {% endif %}
+
+      <form class="auth-form" method="post">
+        {% csrf_token %}
+        <div class="form-group field-float">
+          <input type="text" id="username" name="username" placeholder=" " autocomplete="username" required>
+          <label for="username">Usuário</label>
+        </div>
+        <div class="form-group field-float">
+          <input type="password" id="password" name="password" placeholder=" " autocomplete="current-password" required>
+          <label for="password">Senha</label>
+        </div>
+        <button class="primary-button" type="submit">Entrar</button>
+      </form>
+
+      <p class="auth-switch">Ainda não tem uma conta? <a href="{% url 'cadastro' %}">Criar conta</a></p>
+    </main>
+  </div>
+{% endblock %}
