@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
 from profile.models import Perfil
+from krampt.paginacao import parametros_sem_pagina, paginar, MENSAGENS_POR_PAGINA
 
 from .forms import EnviarMensagemForm
 from .models import Conversa, Mensagem
@@ -89,6 +90,13 @@ def conversa_view(request, conversa_id):
         autor=request.user
     ).update(lida=True)
 
+    pagina = paginar(
+        conversa.mensagens.select_related("autor", "autor__perfil"),
+        request.GET.get("page"),
+        por_pagina=MENSAGENS_POR_PAGINA,
+        ultima_por_padrao=True,
+    )
+
     return render(
         request,
         "conversa.html",
@@ -96,7 +104,9 @@ def conversa_view(request, conversa_id):
             "conversa": conversa,
             "outra_pessoa": conversa.participantes.exclude(pk=request.user.pk).select_related("perfil").first(),
             "formulario": formulario,
-            "mensagens": list(conversa.mensagens.select_related("autor", "autor__perfil")),
+            "mensagens": pagina.object_list,
+            "pagina_objeto": pagina,
+            "parametros_url": parametros_sem_pagina(request),
         },
     )
 

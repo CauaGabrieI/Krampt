@@ -1,0 +1,11 @@
+{% if pagina_objeto.has_other_pages %}
+<nav class="pagination" aria-label="Paginação">
+  {% if pagina_objeto.has_previous %}
+    <a class="pagination-link" href="?{% if parametros_url %}{{ parametros_url }}&amp;{% endif %}page={{ pagina_objeto.previous_page_number }}" rel="prev">Anterior</a>
+  {% endif %}
+  <span class="pagination-info">Página {{ pagina_objeto.number }} de {{ pagina_objeto.paginator.num_pages }}</span>
+  {% if pagina_objeto.has_next %}
+    <a class="pagination-link" href="?{% if parametros_url %}{{ parametros_url }}&amp;{% endif %}page={{ pagina_objeto.next_page_number }}" rel="next">Próxima</a>
+  {% endif %}
+</nav>
+{% endif %}

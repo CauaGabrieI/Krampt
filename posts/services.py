@@ -121,9 +121,9 @@ def format_html_link(url, texto):
     return mark_safe(f'<a class="hashtag-link" href="{escape(url)}">{escape(texto)}</a>')
 
 
-def posts_para_exibir(queryset, usuario):
+def posts_para_exibir(queryset, usuario, incluir_comentarios=True):
     entradas = list(
-        queryset.select_related("autor", "autor__perfil").order_by("-criado_em", "-pk")
+        queryset.select_related("autor", "autor__perfil")
     )
     if not entradas:
         return entradas
@@ -138,33 +138,10 @@ def posts_para_exibir(queryset, usuario):
     salvo_pelo_usuario = Post.salvos_por.through.objects.filter(
         post_id=OuterRef("pk"), user_id=usuario.pk
     )
-    curtida_em_comentario = Comentario.curtidas.through.objects.filter(
-        comentario_id=OuterRef("pk"), user_id=usuario.pk
-    )
-    respostas = (
-        Comentario.objects.select_related("autor", "autor__perfil")
-        .annotate(
-            total_curtidas=Count("curtidas", distinct=True),
-            curtido_pelo_usuario=Exists(curtida_em_comentario),
-        )
-        .order_by("criado_em", "pk")
-    )
-    comentarios = (
-        Comentario.objects.filter(resposta_para__isnull=True)
-        .select_related("autor", "autor__perfil")
-        .annotate(
-            total_curtidas=Count("curtidas", distinct=True),
-            curtido_pelo_usuario=Exists(curtida_em_comentario),
-        )
-        .prefetch_related(Prefetch("respostas", queryset=respostas))
-        .order_by("criado_em", "pk")
-    )
-    originais = {
-        post.pk: post
-        for post in Post.objects.filter(pk__in=originais_ids)
+    originais = (
+        Post.objects.filter(pk__in=originais_ids)
         .select_related("autor", "autor__perfil")
         .prefetch_related("imagens_adicionais")
-        .prefetch_related(Prefetch("comentarios", queryset=comentarios, to_attr="comentarios_raiz"))
         .annotate(
             total_curtidas=Count("curtidas", distinct=True),
             total_republicacoes=Count("republicacoes", distinct=True),
@@ -173,7 +150,33 @@ def posts_para_exibir(queryset, usuario):
             republicado_pelo_usuario=Exists(republicacao_do_usuario),
             salvo_pelo_usuario=Exists(salvo_pelo_usuario),
         )
-    }
+    )
+    if incluir_comentarios:
+        curtida_em_comentario = Comentario.curtidas.through.objects.filter(
+            comentario_id=OuterRef("pk"), user_id=usuario.pk
+        )
+        respostas = (
+            Comentario.objects.select_related("autor", "autor__perfil")
+            .annotate(
+                total_curtidas=Count("curtidas", distinct=True),
+                curtido_pelo_usuario=Exists(curtida_em_comentario),
+            )
+            .order_by("criado_em", "pk")
+        )
+        comentarios = (
+            Comentario.objects.filter(resposta_para__isnull=True)
+            .select_related("autor", "autor__perfil")
+            .annotate(
+                total_curtidas=Count("curtidas", distinct=True),
+                curtido_pelo_usuario=Exists(curtida_em_comentario),
+            )
+            .prefetch_related(Prefetch("respostas", queryset=respostas))
+            .order_by("criado_em", "pk")
+        )
+        originais = originais.prefetch_related(
+            Prefetch("comentarios", queryset=comentarios, to_attr="comentarios_raiz")
+        )
+    originais = {post.pk: post for post in originais}
 
     for entrada in entradas:
         entrada.post_original = originais[entrada.original_id or entrada.pk]

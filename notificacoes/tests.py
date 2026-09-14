@@ -115,3 +115,28 @@ class NotificacaoTests(TestCase):
         self.assertContains(pagina, "começou a seguir você")
         self.assertFalse(Notificacao.objects.filter(usuario=self.caua, lida=False).exists())
         self.assertNotContains(self.client.get(reverse("home")), "header-bell-badge")
+
+class PaginacaoNotificacoesTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        user_model = get_user_model()
+        cls.ana = user_model.objects.create_user(username="ana", first_name="Ana", password="x")
+        cls.caua = user_model.objects.create_user(username="caua", first_name="Cauã", password="x")
+        cls.leo = user_model.objects.create_user(username="leo", first_name="Léo", password="x")
+        cls.post = Post.objects.create(autor=cls.ana, conteudo="Post da Ana")
+        cls.comentario = Comentario.objects.create(post=cls.post, autor=cls.caua, conteudo="Opa")
+        for _ in range(31):
+            Notificacao.objects.create(usuario=cls.ana, autor=cls.leo, tipo="curtida", post=cls.post)
+
+    def test_lista_pagina_em_trinta_notificacoes(self):
+        self.client.force_login(self.ana)
+
+        primeira = self.client.get(reverse("notificacoes:lista"))
+
+        self.assertEqual(len(primeira.context["notificacoes"]), 30)
+        self.assertTrue(primeira.context["pagina_objeto"].has_next())
+
+        segunda = self.client.get(reverse("notificacoes:lista"), {"page": 2})
+
+        self.assertEqual(len(segunda.context["notificacoes"]), 1)
+        self.assertContains(segunda, "Página 2 de 2")

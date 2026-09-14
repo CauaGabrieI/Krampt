@@ -52,6 +52,7 @@
                   {% include "includes/post_card.html" with return_to="buscar" mostrar_comentarios=False %}
                 {% endfor %}
               </div>
+              {% include "includes/paginacao.html" %}
             {% else %}
               <p class="buscar-vazio">Nenhum post encontrado para “{{ termo }}”.</p>
             {% endif %}

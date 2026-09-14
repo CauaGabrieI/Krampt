@@ -9,6 +9,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from posts.models import Post, ImagemPost
 from posts.services import posts_para_exibir
 from notificacoes.services import notificar, remover_notificacao
+from krampt.paginacao import parametros_sem_pagina, paginar
 from .forms import EditarPerfilForm
 from .models import Perfil
 from .services import perfil_do, redimensionar_banner
@@ -16,7 +17,7 @@ from .services import perfil_do, redimensionar_banner
 User = get_user_model()
 
 
-def _conteudo_do_perfil(usuario, visitante, aba):
+def _conteudo_do_perfil(usuario, visitante, aba, pagina):
     pode_ver_salvos = usuario.pk == visitante.pk
     abas_validas = {"publicacoes", "repostados", "midia"}
     if pode_ver_salvos:
@@ -40,9 +41,14 @@ def _conteudo_do_perfil(usuario, visitante, aba):
         exibidos = todos.filter(original__isnull=True).exclude(imagem="")
     else:
         exibidos = todos.filter(original__isnull=True)
+    exibidos = exibidos.order_by("-criado_em", "-pk")
+    pagina_objeto = paginar(exibidos, pagina)
     return {
         "aba": aba,
-        "posts": posts_para_exibir(exibidos, visitante),
+        "posts": posts_para_exibir(
+            pagina_objeto.object_list, visitante, incluir_comentarios=False
+        ),
+        "pagina_objeto": pagina_objeto,
         "total_posts": totais["publicacoes"] + totais["repostados"],
         "total_publicacoes": totais["publicacoes"],
         "total_repostados": totais["repostados"],
@@ -59,10 +65,13 @@ def _conteudo_do_perfil(usuario, visitante, aba):
 def perfil_view(request):
     perfil = perfil_do(request.user)
     contexto = {
-        **_conteudo_do_perfil(request.user, request.user, request.GET.get("aba")),
+        **_conteudo_do_perfil(
+            request.user, request.user, request.GET.get("aba"), request.GET.get("page")
+        ),
         "perfil": perfil,
         "seguindo": perfil.seguindo.count() if perfil else 0,
         "seguidores": request.user.seguidores.count(),
+        "parametros_url": parametros_sem_pagina(request),
     }
     return render(request, "perfil.html", contexto)
 
@@ -77,9 +86,12 @@ def perfil_publico_view(request, username):
     contexto = {
         "perfil_usuario": usuario,
         "perfil": perfil,
-        **_conteudo_do_perfil(usuario, request.user, request.GET.get("aba")),
+        **_conteudo_do_perfil(
+            usuario, request.user, request.GET.get("aba"), request.GET.get("page")
+        ),
         "seguindo": perfil.seguindo.count() if perfil else 0,
         "seguidores": usuario.seguidores.count(),
+        "parametros_url": parametros_sem_pagina(request),
     }
     return render(request, "perfil_publico.html", contexto)
 

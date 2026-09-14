@@ -229,3 +229,33 @@ class ConversaTests(TestCase):
         self.assertEqual(len(response.context["conversas"]), 1)
         self.assertEqual(response.context["conversas"][0]["conversa"], self.conversa)
         self.assertContains(response, "Não lida")
+
+
+class PaginacaoMensagensTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.caua = User.objects.create_user(username="caua", password="senha")
+        cls.maria = User.objects.create_user(username="maria", password="senha")
+        cls.conversa = Conversa.objects.create()
+        cls.conversa.participantes.add(cls.caua, cls.maria)
+        for i in range(31):
+            Mensagem.objects.create(
+                conversa=cls.conversa, autor=cls.maria, conteudo=f"Mensagem {i:02d}"
+            )
+
+    def test_conversa_pagina_em_trinta_e_mostra_mais_recentes_por_padrao(self):
+        self.client.force_login(self.caua)
+
+        pagina = self.client.get(reverse("mensagens:detalhe", args=[self.conversa.pk]))
+
+        self.assertEqual(pagina.status_code, 200)
+        self.assertEqual(pagina.context["pagina_objeto"].number, 2)
+        self.assertEqual(len(pagina.context["mensagens"]), 1)
+        self.assertEqual(pagina.context["mensagens"][0].conteudo, "Mensagem 30")
+
+        pagina_um = self.client.get(
+            reverse("mensagens:detalhe", args=[self.conversa.pk]), {"page": 1}
+        )
+
+        self.assertEqual(len(pagina_um.context["mensagens"]), 30)
+        self.assertContains(pagina_um, "Página 1 de 2")

@@ -10,6 +10,7 @@ from django.db import transaction
 from posts.services import comprimir_imagem_lossless, posts_para_exibir
 from posts.forms import CriarPostForm
 from profile.services import seguindo_ids
+from .paginacao import parametros_sem_pagina, paginar
 
 User = get_user_model()
 
@@ -40,9 +41,18 @@ def Index_view(request):
 
     if request.GET.get("filtro") == "seguindo":
         post_base = Post.objects.filter(autor_id__in=seguindo_ids(request.user))
-        contexto = {"posts": posts_para_exibir(post_base, request.user), "filtro": "seguindo"}
+        filtro = "seguindo"
     else:
-        contexto = {"posts": posts_para_exibir(Post.objects.all(), request.user)}
+        post_base = Post.objects.all()
+        filtro = ""
+    post_base = post_base.order_by("-criado_em", "-pk")
+    pagina = paginar(post_base, request.GET.get("page"))
+    contexto = {
+        "posts": posts_para_exibir(pagina.object_list, request.user, incluir_comentarios=False),
+        "pagina_objeto": pagina,
+        "parametros_url": parametros_sem_pagina(request),
+        "filtro": filtro,
+    }
 
     if request.method == "POST":
         contexto["formulario"] = formulario
@@ -53,7 +63,7 @@ def Index_view(request):
 @require_GET
 def buscar_view(request):
     termo = (request.GET.get("q") or "").strip()
-    pessoas, posts = [], []
+    pessoas, posts, pagina_final = [], [], None
     if termo:
         pessoas = (
             User.objects.filter(Q(first_name__icontains=termo) | Q(username__icontains=termo))
@@ -61,9 +71,22 @@ def buscar_view(request):
             .select_related("perfil")
             .order_by("username")[:20]
         )
-        ids = list(
-            Post.objects.filter(conteudo__icontains=termo).values_list("pk", flat=True)[:30]
+        pagina_final = paginar(
+            Post.objects.filter(conteudo__icontains=termo).order_by("-criado_em", "-pk"),
+            request.GET.get("page"),
         )
-        posts = posts_para_exibir(Post.objects.filter(pk__in=ids), request.user) if ids else []
-    return render(request, "buscar.html", {"termo": termo, "pessoas": pessoas, "posts": posts})
+        posts = posts_para_exibir(
+            pagina_final.object_list, request.user, incluir_comentarios=False
+        )
+    return render(
+        request,
+        "buscar.html",
+        {
+            "termo": termo,
+            "pessoas": pessoas,
+            "posts": posts,
+            "pagina_objeto": pagina_final,
+            "parametros_url": parametros_sem_pagina(request),
+        },
+    )
     

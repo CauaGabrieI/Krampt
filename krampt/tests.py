@@ -4,6 +4,7 @@ from django.urls import reverse
 
 from posts.models import Post
 from django.contrib.sessions.models import Session
+from profile.models import Perfil
 
 
 class AutenticacaoTests(TestCase):
@@ -142,3 +143,62 @@ class BuscarTests(TestCase):
         response = self.client.get(reverse("buscar"))
 
         self.assertEqual(response.status_code, 302)
+
+
+class PaginacaoTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.usuario = get_user_model().objects.create_user(username="ana", password="senha")
+        cls.outro = get_user_model().objects.create_user(username="caua", password="senha")
+        for i in range(25):
+            Post.objects.create(autor=cls.outro, conteudo=f"Noticia {i:02d}")
+        perfil, _ = Perfil.objects.get_or_create(usuario=cls.usuario)
+        perfil.seguindo.add(cls.outro)
+
+    def test_feed_pagina_em_vinte_posts(self):
+        self.client.force_login(self.usuario)
+
+        pagina_um = self.client.get(reverse("home"))
+
+        self.assertEqual(pagina_um.status_code, 200)
+        self.assertEqual(len(pagina_um.context["posts"]), 20)
+        self.assertTrue(pagina_um.context["pagina_objeto"].has_next())
+
+        pagina_dois = self.client.get(reverse("home"), {"page": 2})
+
+        self.assertEqual(len(pagina_dois.context["posts"]), 5)
+        self.assertEqual(pagina_dois.context["pagina_objeto"].number, 2)
+        self.assertFalse(pagina_dois.context["pagina_objeto"].has_next())
+
+    def test_pagina_nao_existente_cai_na_ultima(self):
+        self.client.force_login(self.usuario)
+
+        pagina = self.client.get(reverse("home"), {"page": 999})
+
+        self.assertEqual(pagina.context["pagina_objeto"].number, 2)
+
+    def test_pagina_invalida_cai_na_primeira(self):
+        self.client.force_login(self.usuario)
+
+        pagina = self.client.get(reverse("home"), {"page": "abc"})
+
+        self.assertEqual(pagina.context["pagina_objeto"].number, 1)
+
+    def test_filtro_seguindo_e_mantido_ao_paginar(self):
+        self.client.force_login(self.usuario)
+
+        pagina = self.client.get(reverse("home"), {"filtro": "seguindo", "page": 2})
+
+        self.assertEqual(pagina.status_code, 200)
+        self.assertEqual(pagina.context["parametros_url"], "filtro=seguindo")
+        self.assertContains(pagina, "?filtro=seguindo&amp;page=1")
+        self.assertEqual(len(pagina.context["posts"]), 5)
+
+    def test_termo_de_busca_e_mantido_ao_paginar(self):
+        self.client.force_login(self.usuario)
+
+        pagina = self.client.get(reverse("buscar"), {"q": "Noticia", "page": 2})
+
+        self.assertEqual(pagina.status_code, 200)
+        self.assertContains(pagina, "?q=Noticia&amp;page=1")
+        self.assertEqual(len(pagina.context["posts"]), 5)

@@ -700,6 +700,14 @@ textarea::placeholder {
 .auth-resend button { padding: 7px 12px; border: 0; background: transparent; color: var(--primary-light); font-size: 12px; font-weight: 800; }
 .auth-resend button:hover { text-decoration: underline; }
 
+.pagination { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 17px; border-top: 1px solid var(--border); }
+.pagination-link { padding: 7px 12px; border: 1px solid var(--border); background: var(--surface); color: var(--primary-light); font-size: 12px; font-weight: 700; }
+.pagination-link:hover { background: var(--surface-raised); }
+.pagination-info { color: var(--muted); font-size: 12px; }
+@media (max-width: 720px) {
+  .pagination { padding: 14px 17px; }
+}
+
 @media (max-width: 1280px) {
   .app-shell { display: block; max-width: var(--feed-width); }
   .left-rail { display: none; }

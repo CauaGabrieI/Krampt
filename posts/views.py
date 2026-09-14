@@ -7,6 +7,7 @@ from django.http import JsonResponse
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from notificacoes.services import notificar, remover_notificacao
+from krampt.paginacao import parametros_sem_pagina, paginar
 from .models import Comentario, Hashtag, Post
 from .forms import ComentarioForm, EditarPostForm
 from .services import comprimir_imagem_lossless, posts_para_exibir
@@ -45,11 +46,25 @@ def detalhe_post(request, post_id):
 @login_required
 def hashtag_view(request, slug):
     hashtag = get_object_or_404(Hashtag, slug=slug)
-    posts = posts_para_exibir(
-        Post.objects.filter(Q(hashtags=hashtag) | Q(comentarios__hashtags=hashtag)).distinct(),
-        request.user,
+    base = (
+        Post.objects.filter(Q(hashtags=hashtag) | Q(comentarios__hashtags=hashtag))
+        .distinct()
+        .order_by("-criado_em", "-pk")
     )
-    return render(request, "hashtag.html", {"hashtag": hashtag, "posts": posts})
+    pagina = paginar(base, request.GET.get("page"))
+    posts = posts_para_exibir(
+        pagina.object_list, request.user, incluir_comentarios=False
+    )
+    return render(
+        request,
+        "hashtag.html",
+        {
+            "hashtag": hashtag,
+            "posts": posts,
+            "pagina_objeto": pagina,
+            "parametros_url": parametros_sem_pagina(request),
+        },
+    )
 
 
 @login_required
