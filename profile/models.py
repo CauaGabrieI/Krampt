@@ -1,12 +1,6 @@
 from django.db import models
 from django.conf import settings
 
-# Create your models here.
-
-class Usuario(models.Model):
-    nome = models.CharField(max_length=50),
-    biografia = models.CharField(max_length=100),
-
 
 class Perfil(models.Model):
     usuario = models.OneToOneField(
