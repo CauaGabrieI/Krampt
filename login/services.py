@@ -1,3 +1,5 @@
+import ipaddress
+import os
 import secrets
 from datetime import timedelta
 from hmac import compare_digest
@@ -22,10 +24,38 @@ def _resumo(valor, proposito):
     return salted_hmac(f"krampt.{proposito}", valor, algorithm="sha256").hexdigest()
 
 
+def obter_ip_cliente(request):
+    """IP real do cliente, considerando proxies confiáveis somente quando ativado.
+
+    Fora de proxy, X-Forwarded-For não é confiável e é ignorado: usa-se o
+    REMOTE_ADDR fornecido pelo servidor. Com TRUST_PROXY_HEADERS=true (ou no
+    Render, detectado automaticamente), o primeiro endereço válido de
+    X-Forwarded-For é usado como IP do cliente.
+    """
+    ip_remoto = request.META.get("REMOTE_ADDR", "desconhecido")
+    proxy_confiavel = bool(os.environ.get("RENDER")) or os.environ.get(
+        "TRUST_PROXY_HEADERS", "false"
+    ).lower() == "true"
+    if not proxy_confiavel:
+        return ip_remoto
+    for origem in request.META.get("HTTP_X_FORWARDED_FOR", "").split(","):
+        candidato = origem.strip()
+        if not candidato:
+            continue
+        try:
+            ipaddress.ip_address(candidato)
+        except ValueError:
+            continue
+        return candidato
+    return ip_remoto
+
+
 def _chave_limite(request, proposito, identidade=""):
-    # REMOTE_ADDR vem do servidor; cabeçalhos X-Forwarded-For não são confiáveis aqui.
-    ip = request.META.get("REMOTE_ADDR", "desconhecido")
-    valor = ip if not identidade else identidade.casefold()
+    valor = (
+        obter_ip_cliente(request)
+        if not identidade
+        else identidade.casefold()
+    )
     return _resumo(f"{proposito}:{valor}", "limite")
 
 

@@ -1,15 +1,16 @@
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.contrib.sessions.models import Session
-from django.test import Client, TestCase, override_settings
+from django.test import Client, RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from datetime import timedelta
+import os
 import re
 from unittest.mock import patch
 
 from login.models import LimiteAutenticacao, VerificacaoEmail
-from login.services import mascarar_email
+from login.services import mascarar_email, obter_ip_cliente
 from django.core import management
 from io import StringIO
 
@@ -374,3 +375,70 @@ class RedefinirSenhaTests(TestCase):
         cliente = Client(enforce_csrf_checks=True)
         self.assertEqual(cliente.post(reverse("login:password_reset"), {"email": "ana@example.com"}).status_code, 403)
         self.assertEqual(len(mail.outbox), 0)
+
+
+class ObterIpClienteTests(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def _request(self, remoto, xff):
+        request = self.factory.post("/")
+        request.META["REMOTE_ADDR"] = remoto
+        if xff is not None:
+            request.META["HTTP_X_FORWARDED_FOR"] = xff
+        return request
+
+    def test_sem_proxy_usa_remoto_e_ignora_xff(self):
+        with patch.dict(os.environ, {"TRUST_PROXY_HEADERS": "false"}):
+            self.assertEqual(obter_ip_cliente(self._request("203.0.113.7", "192.0.2.1")), "203.0.113.7")
+
+    def test_com_proxy_confiavel_usa_primeira_ip_valida_do_xff(self):
+        with patch.dict(os.environ, {"TRUST_PROXY_HEADERS": "true"}):
+            self.assertEqual(obter_ip_cliente(self._request("10.0.0.1", "192.0.2.1, 10.0.0.2")), "192.0.2.1")
+
+    def test_xff_invalido_ignorado_e_usa_remoto(self):
+        with patch.dict(os.environ, {"TRUST_PROXY_HEADERS": "true"}):
+            self.assertEqual(obter_ip_cliente(self._request("203.0.113.7", "lixo, 999.1.1.1")), "203.0.113.7")
+
+    def test_sem_xff_usa_remoto(self):
+        with patch.dict(os.environ, {"TRUST_PROXY_HEADERS": "true"}):
+            self.assertEqual(obter_ip_cliente(self._request("203.0.113.7", None)), "203.0.113.7")
+
+    def test_render_detectado_automaticamente(self):
+        with patch.dict(os.environ, {"RENDER": "true"}, clear=False):
+            self.assertEqual(obter_ip_cliente(self._request("10.0.0.1", "198.51.100.4")), "198.51.100.4")
+
+    def test_limite_de_login_por_ips_distintos(self):
+        User.objects.create_user(username="ana", password="Nuvem!Laranja927")
+        User.objects.create_user(username="bia", password="Nuvem!Laranja927")
+        primeiro = Client(REMOTE_ADDR="203.0.113.10")
+        segundo = Client(REMOTE_ADDR="203.0.113.20")
+        with patch.dict(os.environ, {"TRUST_PROXY_HEADERS": "true"}):
+            for _ in range(5):
+                primeiro.post(reverse("login:login"), {"username": "ana", "password": "errada"})
+            self.assertEqual(primeiro.post(reverse("login:login"), {"username": "ana", "password": "Nuvem!Laranja927"}).status_code, 429)
+            segundo.post(reverse("login:login"), {"username": "bia", "password": "errada"})
+            self.assertEqual(segundo.post(reverse("login:login"), {"username": "bia", "password": "Nuvem!Laranja927"}).status_code, 302)
+
+
+class UsernameCanonicoTests(TestCase):
+    def test_cadastro_armazena_username_minusculo(self):
+        self.client.post(reverse('cadastro'), {
+            'name': 'Ana Maria', 'username': ' AnA ', 'email': 'ana@example.com',
+            'password': 'Nuvem!Laranja927', 'password_confirm': 'Nuvem!Laranja927',
+        })
+        self.assertEqual(User.objects.get().username, 'ana')
+
+    def test_login_com_username_em_maiusculas_normaliza(self):
+        User.objects.create_user(username='ana', password='Nuvem!Laranja927')
+        resposta = self.client.post(reverse('login:login'), {'username': ' ANA ', 'password': 'Nuvem!Laranja927'})
+        self.assertRedirects(resposta, reverse('home'))
+
+    def test_duplicado_case_insensitive_rejeitado(self):
+        User.objects.create_user(username='Ana', password='senha')
+        resposta = self.client.post(reverse('cadastro'), {
+            'name': 'Ana', 'username': 'ana', 'email': 'outro@example.com',
+            'password': 'Nuvem!Laranja927', 'password_confirm': 'Nuvem!Laranja927',
+        })
+        self.assertTrue(resposta.context['formulario'].errors)
+        self.assertEqual(User.objects.count(), 1)

@@ -9,7 +9,8 @@ User = get_user_model()
 
 
 def normalizar_usuario(valor):
-    return ''.join(unicodedata.normalize('NFKC', valor).split())
+    """Canonical form for usernames: NFKC, no whitespace, lowercase."""
+    return ''.join(unicodedata.normalize('NFKC', valor).split()).lower()
 
 
 class CadastroForm(forms.Form):

@@ -1,7 +1,7 @@
 import os
 
 from django.conf import settings
-from django.core.checks import Error, register
+from django.core.checks import Error, Warning, register
 
 
 @register(tags=("email",))
@@ -29,3 +29,27 @@ def verificar_email_em_producao(app_configs, **kwargs):
             )
         )
     return erros
+
+
+@register(tags=("username",))
+def verificar_usernames_canonicos(app_configs, **kwargs):
+    """Reporta (sem alterar) usuários com nome fora do padrão minúsculo."""
+    if app_configs is not None:
+        return []
+    try:
+        from django.contrib.auth import get_user_model
+        from django.db.models.functions import Lower
+
+        User = get_user_model()
+        nao_canonicos = User.objects.exclude(username=Lower("username")).count()
+    except Exception:
+        return []
+    if not nao_canonicos:
+        return []
+    return [
+        Warning(
+            f"{nao_canonicos} usuário(s) com nome de usuário fora do padrão minúsculo.",
+            hint="O cadastro agora normaliza usuários para minúsculas. Antes de padronizar, verifique colisões case-insensitive e converta manualmente os nomes existentes.",
+            id="krampt.W003",
+        )
+    ]
