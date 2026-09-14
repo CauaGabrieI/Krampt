@@ -2,6 +2,7 @@ import unicodedata
 
 from django import forms
 from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.auth.password_validation import validate_password
 
 User = get_user_model()
@@ -91,6 +92,14 @@ class VerificacaoForm(forms.Form):
             "required": "Informe o código de 6 dígitos.",
             "invalid": "O código deve ter exatamente 6 números.",
         },
+    )
+
+
+class RedefinirSenhaForm(PasswordResetForm):
+    email = forms.EmailField(
+        label="E-mail",
+        max_length=254,
+        widget=forms.EmailInput(attrs={"autocomplete": "email"}),
     )
 
 

@@ -307,3 +307,70 @@ class LimparAutenticacaoExpiradaTests(TestCase):
         management.call_command("limpar_autenticacao_expirada", "--prazo-horas", 1, stdout=StringIO())
         self.assertFalse(User.objects.filter(pk=antiga.pk).exists())
         self.assertFalse(User.objects.filter(pk=recente.pk).exists())
+
+
+@override_settings(MAILERS={"default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend"}})
+class RedefinirSenhaTests(TestCase):
+    def _url_recuperacao(self):
+        corpo = mail.outbox[-1].body
+        return re.search(r"http://testserver(/login/senha/[^\s]+)", corpo).group(1)
+
+    def test_pagina_de_recuperacao_e_acessivel_sem_login(self):
+        resposta = self.client.get(reverse("login:password_reset"))
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "Esqueci minha senha")
+
+    def test_resposta_generica_e_so_envia_para_conta_existente(self):
+        usuario = User.objects.create_user(username="ana", password="Nuvem!Laranja927", email="ana@example.com")
+        resposta = self.client.post(reverse("login:password_reset"), {"email": "ana@example.com"})
+        self.assertRedirects(resposta, reverse("login:password_reset_done"))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["ana@example.com"])
+        resposta = self.client.post(reverse("login:password_reset"), {"email": "nao-existe@example.com"})
+        self.assertRedirects(resposta, reverse("login:password_reset_done"))
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_nao_envia_para_conta_inativa_ou_desativada(self):
+        User.objects.create_user(username="inativa", password="senha", email="inativa@example.com", is_active=False)
+        self.client.post(reverse("login:password_reset"), {"email": "inativa@example.com"})
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_fluxo_completo_de_redefinicao_de_senha(self):
+        usuario = User.objects.create_user(username="ana", password="Nuvem!Laranja927", email="ana@example.com")
+        self.client.post(reverse("login:password_reset"), {"email": "ana@example.com"})
+        url = self._url_recuperacao()
+        pagina = self.client.get(url, follow=True)
+        self.assertEqual(pagina.status_code, 200)
+        self.assertContains(pagina, "Crie uma nova senha")
+        url_formulario = pagina.redirect_chain[-1][0]
+        resposta = self.client.post(url_formulario, {
+            "new_password1": "Outra!Senha2810",
+            "new_password2": "Outra!Senha2810",
+        })
+        self.assertRedirects(resposta, reverse("login:password_reset_complete"))
+        usuario.refresh_from_db()
+        self.assertTrue(usuario.check_password("Outra!Senha2810"))
+        self.assertFalse(usuario.check_password("Nuvem!Laranja927"))
+        self.assertRedirects(self.client.post(reverse("login:login"), {"username": "ana", "password": "Outra!Senha2810"}), reverse("home"))
+
+    def test_link_invalido_nao_redefine_senha(self):
+        usuario = User.objects.create_user(username="ana", password="Nuvem!Laranja927", email="ana@example.com")
+        resposta = self.client.get(reverse("login:password_reset_confirm", kwargs={"uidb64": "abc", "token": "abcd-efgh"}))
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "link de recuperação é inválido")
+        usuario.refresh_from_db()
+        self.assertTrue(usuario.check_password("Nuvem!Laranja927"))
+
+    def test_rate_limit_nas_solicitacoes(self):
+        for _ in range(5):
+            resposta = self.client.post(reverse("login:password_reset"), {"email": "nao-existe@example.com"})
+            self.assertEqual(resposta.status_code, 302)
+        resposta = self.client.post(reverse("login:password_reset"), {"email": "nao-existe@example.com"})
+        self.assertEqual(resposta.status_code, 429)
+        self.assertContains(resposta, "Muitas solicitações", status_code=429)
+
+    def test_redefinicao_exige_csrf(self):
+        User.objects.create_user(username="ana", password="senha", email="ana@example.com")
+        cliente = Client(enforce_csrf_checks=True)
+        self.assertEqual(cliente.post(reverse("login:password_reset"), {"email": "ana@example.com"}).status_code, 403)
+        self.assertEqual(len(mail.outbox), 0)

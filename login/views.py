@@ -1,14 +1,19 @@
 from smtplib import SMTPException
 
 from django.contrib.auth import get_user_model, login
+from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_not_required
 from django.db import IntegrityError, transaction
 from django.shortcuts import redirect, render
+from django.urls import reverse_lazy
+from django.utils.decorators import method_decorator
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_http_methods
 
-from .forms import CadastroForm, LoginForm, VerificacaoForm, normalizar_usuario
+from .forms import (
+    CadastroForm, LoginForm, RedefinirSenhaForm, VerificacaoForm, normalizar_usuario,
+)
 from .models import VerificacaoEmail
 from .services import (
     bloqueio_ativo, conferir_codigo, emitir_codigo, limpar_falhas, mascarar_email,
@@ -142,3 +147,50 @@ def verificar_email_view(request):
         elif request.POST.get('acao') != 'reenviar':
             registrar_falha(request, 'verificar-ip', max_tentativas=20)
     return render(request, 'verificar_email.html', contexto)
+
+
+@method_decorator(login_not_required, name="dispatch")
+@method_decorator(sensitive_post_parameters(), name="dispatch")
+class RedefinirSenhaView(auth_views.PasswordResetView):
+    template_name = "password_reset_form.html"
+    form_class = RedefinirSenhaForm
+    success_url = reverse_lazy("login:password_reset_done")
+    email_template_name = "emails/recuperacao_senha.txt"
+    html_email_template_name = "emails/recuperacao_senha.html"
+    subject_template_name = "emails/recuperacao_senha_subject.txt"
+    proposito_limite = "reset-senha-ip"
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.method == "POST" and bloqueio_ativo(request, self.proposito_limite):
+            formulario = self.get_form()
+            return render(
+                request,
+                self.template_name,
+                {
+                    "formulario": formulario,
+                    "erro_limite": "Muitas solicitações. Aguarde 15 minutos e tente novamente.",
+                },
+                status=429,
+            )
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        registrar_falha(request, self.proposito_limite, max_tentativas=5)
+        return super().post(request, *args, **kwargs)
+
+
+@method_decorator(login_not_required, name="dispatch")
+class RedefinirSenhaDoneView(auth_views.PasswordResetDoneView):
+    template_name = "password_reset_done.html"
+
+
+@method_decorator(login_not_required, name="dispatch")
+@method_decorator(sensitive_post_parameters(), name="dispatch")
+class RedefinirSenhaConfirmView(auth_views.PasswordResetConfirmView):
+    template_name = "password_reset_confirm.html"
+    success_url = reverse_lazy("login:password_reset_complete")
+
+
+@method_decorator(login_not_required, name="dispatch")
+class RedefinirSenhaCompleteView(auth_views.PasswordResetCompleteView):
+    template_name = "password_reset_complete.html"

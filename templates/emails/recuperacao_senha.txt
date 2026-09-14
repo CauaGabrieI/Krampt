@@ -1,0 +1,11 @@
+Olá,
+
+Recebemos uma solicitação para redefinir a senha da sua conta no Krampt.
+
+Abra o link abaixo para criar uma nova senha:
+{{ protocol }}://{{ domain }}{% url 'login:password_reset_confirm' uidb64=uid token=token %}
+
+Se o link não abrir, copie e cole o endereço completo no navegador.
+
+Este link é válido por pouco tempo e só pode ser usado uma vez. Se não foi você
+quem pediu, ignore esta mensagem e nenhuma alteração será feita na sua conta.
