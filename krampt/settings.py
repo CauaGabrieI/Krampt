@@ -26,7 +26,9 @@ load_dotenv(BASE_DIR / ".env")
 SECRET_KEY = os.environ["SECRET_KEY"]
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get(
+    "DEBUG", "false" if os.environ.get("RENDER") else "true"
+).lower() == "true"
 
 ALLOWED_HOSTS = [
     "localhost",
@@ -43,6 +45,15 @@ CSRF_TRUSTED_ORIGINS = [
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")   
 
 LOGIN_URL = "/login/"
+SESSION_ENGINE = "django.contrib.sessions.backends.db"
+MESSAGE_STORAGE = "django.contrib.messages.storage.session.SessionStorage"
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+CSRF_USE_SESSIONS = True
+SESSION_COOKIE_SECURE = os.environ.get(
+    "SESSION_COOKIE_SECURE", "false" if DEBUG else "true"
+).lower() == "true"
 
 
 # Application definition
@@ -131,12 +142,16 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {'min_length': 10},
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
     },
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+    {
+        'NAME': 'login.validators.ComposicaoSenhaValidator',
     },
 ]
 
@@ -169,8 +184,21 @@ STATICFILES_DIRS = [
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "Krampt <nao-responda@krampt.local>")
 MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+    "default": {
+        "BACKEND": (
+            "django.core.mail.backends.smtp.EmailBackend"
+            if os.environ.get("EMAIL_HOST") or not DEBUG
+            else "django.core.mail.backends.console.EmailBackend"
+        ),
+        "OPTIONS": {
+            "host": os.environ.get("EMAIL_HOST", "localhost"),
+            "port": int(os.environ.get("EMAIL_PORT", "587")),
+            "username": os.environ.get("EMAIL_HOST_USER", ""),
+            "password": os.environ.get("EMAIL_HOST_PASSWORD", ""),
+            "use_tls": os.environ.get("EMAIL_USE_TLS", "true").lower() == "true",
+            "use_ssl": os.environ.get("EMAIL_USE_SSL", "false").lower() == "true",
+        } if os.environ.get("EMAIL_HOST") or not DEBUG else {},
     },
 }

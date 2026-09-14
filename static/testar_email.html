@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Testar e-mail | Krampt{% endblock %}
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/testar_email.css' %}?v=1">
+{% endblock %}
+{% block content %}
+  {% include "includes/site_header.html" %}
+  <main class="email-test-page">
+    <a class="email-test-back" href="{% url 'home' %}">← Voltar ao início</a>
+    <div class="email-test-heading">
+      <span class="eyebrow">Administração</span>
+      <h1>Testar envio de e-mail</h1>
+      <p>Envie uma mensagem simples para conferir a configuração de e-mail do Krampt.</p>
+    </div>
+
+    <section class="email-test-card" aria-labelledby="email-test-form-heading">
+      <h2 id="email-test-form-heading">Novo teste</h2>
+      {% if modo_console %}
+        <p class="email-test-note">Modo de desenvolvimento: a mensagem aparecerá no console do servidor.</p>
+      {% endif %}
+      {% if sucesso %}<p class="email-test-success" role="status">{{ sucesso }}</p>{% endif %}
+      {% if erro_envio %}<p class="email-test-error" role="alert">{{ erro_envio }}</p>{% endif %}
+
+      <form method="post" data-submit-once novalidate>
+        {% csrf_token %}
+        <label for="test-email">E-mail de destino</label>
+        <input id="test-email" name="email" type="email" value="{{ formulario.email.value|default:'' }}" placeholder="nome@exemplo.com" autocomplete="email" required aria-describedby="test-email-help{% if formulario.email.errors %} test-email-error{% endif %}">
+        {% if formulario.email.errors %}
+          <p class="email-test-error" id="test-email-error" role="alert">{{ formulario.email.errors|join:' ' }}</p>
+        {% endif %}
+        <p class="email-test-help" id="test-email-help">O resultado confirma que o servidor aceitou o envio; a entrega depende do provedor e da caixa de destino.</p>
+        <button class="primary-button" type="submit">Enviar teste</button>
+      </form>
+    </section>
+  </main>
+{% endblock %}
+{% block scripts %}
+  {% include "includes/header_search_script.html" %}
+  {% include "includes/account_menu_script.html" %}
+{% endblock %}

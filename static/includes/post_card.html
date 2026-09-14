@@ -4,19 +4,24 @@
   {% if post.original_id %}
     <div class="post-repost-label">
       <span class="material-symbols-outlined" aria-hidden="true">repeat</span>
-      {{ post.autor.first_name|default:post.autor.username }} republicou
+      <a href="{% url 'profile:perfil_publico' post.autor.username %}">{{ post.autor.first_name|default:post.autor.username }} republicou</a>
     </div>
   {% endif %}
   <div class="post-row">
-    {% include "includes/avatar.html" with usuario=original.autor %}
+    <a class="post-avatar-link" href="{% url 'profile:perfil_publico' original.autor.username %}" aria-label="Ver perfil de {{ original.autor.username }}">
+      {% include "includes/avatar.html" with usuario=original.autor %}
+    </a>
     <div class="post-main">
       <div class="post-header">
         <div class="post-identity">
-          <strong>{{ original.autor.first_name|default:original.autor.username }}</strong>
-          <span>@{{ original.autor.username }}</span>
+          <a class="post-author-link" href="{% url 'profile:perfil_publico' original.autor.username %}">
+            <span>@{{ original.autor.username }}</span>
+            <strong>{{ original.autor.first_name|default:original.autor.username }}</strong>
+          </a>
           <span aria-hidden="true">·</span>
           <time datetime="{{ original.criado_em|date:'c' }}">{{ original.criado_em|date:"d/m/Y H:i" }}</time>
         </div>
+
         {% if post.autor == request.user %}
         <details class="post-menu">
             <summary aria-label="Abrir opções do post" title="Opções do post">

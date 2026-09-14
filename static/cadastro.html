@@ -21,32 +21,53 @@
       <h2>Crie sua conta</h2>
       <p class="auth-subtitle">Preencha seus dados para participar do Krampt.</p>
 
-      <form class="auth-form" method="post">
+      <form class="auth-form" method="post" novalidate>
         {% csrf_token %}
+        {% if formulario.errors %}
+          <div class="error-message" role="alert">
+            {% for erro in formulario.non_field_errors %}<p>{{ erro }}</p>{% endfor %}
+            {% for campo in formulario %}{% for erro in campo.errors %}<p>{{ campo.label }}: {{ erro }}</p>{% endfor %}{% endfor %}
+          </div>
+        {% endif %}
         <div class="form-group field-float">
-          <input type="text" id="name" name="name" placeholder=" " autocomplete="given-name" required>
+          <input type="text" id="name" name="name" value="{{ formulario.name.value|default:'' }}" placeholder=" " autocomplete="given-name" required>
           <label for="name">Nome</label>
         </div>
         <div class="form-group field-float">
-          <input type="text" id="username" name="username" placeholder=" " autocomplete="username" required>
+          <input type="text" id="username" name="username" value="{{ formulario.username.value|default:'' }}" placeholder=" " autocomplete="username" required>
           <label for="username">Usuário</label>
         </div>
         <div class="form-group field-float">
-          <input type="email" id="email" name="email" placeholder=" " autocomplete="email" required>
+          <input type="email" id="email" name="email" value="{{ formulario.email.value|default:'' }}" placeholder=" " autocomplete="email" required>
           <label for="email">E-mail</label>
         </div>
         <div class="form-group field-float">
-          <input type="password" id="password" name="password" placeholder=" " autocomplete="new-password" required>
+          <input type="password" id="password" name="password" placeholder=" " autocomplete="new-password" aria-describedby="password-strength password-rules" required>
           <label for="password">Senha</label>
+        </div>
+        <div class="password-feedback" id="password-feedback" data-strength="empty">
+          <p id="password-strength" class="password-strength" role="status" aria-live="polite">Digite uma senha para ver os requisitos.</p>
+          <div class="password-meter" aria-hidden="true"><span></span></div>
+          <ul id="password-rules" class="password-rules">
+            <li data-rule="length">Pelo menos 10 caracteres</li>
+            <li data-rule="upper">Uma letra maiúscula</li>
+            <li data-rule="lower">Uma letra minúscula</li>
+            <li data-rule="number">Um número</li>
+            <li data-rule="special">Um caractere especial</li>
+          </ul>
         </div>
         <div class="form-group field-float">
           <input type="password" id="password_confirm" name="password_confirm" placeholder=" " autocomplete="new-password" required>
           <label for="password_confirm">Confirmar senha</label>
         </div>
+        <p class="password-help">Senhas comuns ou parecidas com seus dados também serão recusadas.</p>
         <button class="primary-button" type="submit">Criar conta</button>
       </form>
 
       <p class="auth-switch">Já tem uma conta? <a href="{% url 'login:login' %}">Entrar</a></p>
     </main>
   </div>
+{% endblock %}
+{% block scripts %}
+  <script src="{% static 'js/password_strength.js' %}" defer></script>
 {% endblock %}

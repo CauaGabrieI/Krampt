@@ -4,13 +4,16 @@ from io import BytesIO
 from django.db.models import Count, Exists, OuterRef, Prefetch
 from django.core.files.base import ContentFile
 from django.urls import reverse
-from django.utils.html import escape
+from django.utils.html import escape, urlize
 from django.utils.text import slugify
 from django.utils.safestring import mark_safe
 
 from .models import Comentario, Post
 
-HASHTAG_RE = re.compile(r"(?<![\w#])#([\w]+)", re.UNICODE)
+LINK_OU_HASHTAG_RE = re.compile(
+    r"https?://[^\s<>]+|www\.[^\s<>]+|(?<![\w#])#[\w]+",
+    re.IGNORECASE | re.UNICODE,
+)
 
 
 def comprimir_imagem_lossless(uploaded_file):
@@ -47,8 +50,10 @@ def comprimir_imagem_lossless(uploaded_file):
 
 def hashtags_do_texto(texto):
     encontrados = {}
-    for correspondencia in HASHTAG_RE.finditer(texto or ""):
-        nome = correspondencia.group(1)
+    for correspondencia in LINK_OU_HASHTAG_RE.finditer(texto or ""):
+        if not correspondencia.group(0).startswith("#"):
+            continue
+        nome = correspondencia.group(0)[1:]
         slug = slugify(nome)
         if slug:
             encontrados[slug] = nome
@@ -56,17 +61,25 @@ def hashtags_do_texto(texto):
 
 
 def conteudo_com_hashtags(texto):
-    def substituir(correspondencia):
-        nome = correspondencia.group(1)
-        slug = slugify(nome)
-        if not slug:
-            return escape(correspondencia.group(0))
-        url = reverse("posts:hashtag", kwargs={"slug": slug})
-        return format_html_link(url, f"#{nome}")
-
     linhas = []
     for linha in (texto or "").splitlines():
-        linhas.append(HASHTAG_RE.sub(substituir, escape(linha)))
+        partes = []
+        inicio = 0
+        for correspondencia in LINK_OU_HASHTAG_RE.finditer(linha):
+            partes.append(urlize(linha[inicio:correspondencia.start()], nofollow=True, autoescape=True))
+            trecho = correspondencia.group(0)
+            if trecho.startswith("#"):
+                slug = slugify(trecho[1:])
+                if slug:
+                    url = reverse("posts:hashtag", kwargs={"slug": slug})
+                    partes.append(format_html_link(url, trecho))
+                else:
+                    partes.append(escape(trecho))
+            else:
+                partes.append(urlize(trecho, nofollow=True, autoescape=True))
+            inicio = correspondencia.end()
+        partes.append(urlize(linha[inicio:], nofollow=True, autoescape=True))
+        linhas.append("".join(partes))
     return mark_safe("<br>".join(linhas))
 
 

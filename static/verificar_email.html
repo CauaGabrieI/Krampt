@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Verificar e-mail | Krampt{% endblock %}
+{% block body_class %}auth-page{% endblock %}
+{% block content %}
+  <div class="auth-layout">
+    <aside class="auth-story">
+      <a class="brand" href="{% url 'login:login' %}" aria-label="Krampt">
+        <img class="brand-mark" src="{% static 'imgs/logo.png' %}" alt="">
+        <span>Krampt</span>
+      </a>
+      <div class="auth-story-content">
+        <h1>Confirme seu e-mail.</h1>
+        <p>Estamos quase lá. Digite o código que enviamos para ativar sua conta.</p>
+      </div>
+      <small>Seu espaço, sua voz.</small>
+    </aside>
+    <main class="auth-panel">
+      <p class="eyebrow">Mais um passo</p>
+      <h2>Verificar e-mail</h2>
+      <p class="auth-subtitle">O código tem 6 números e vale por 10 minutos.</p>
+      {% if mensagem %}<div class="auth-success" role="status">{{ mensagem }}</div>{% endif %}
+      {% if erro or erro_limite or formulario.errors %}
+        <div class="error-message" role="alert">
+          {% if erro %}<p>{{ erro }}</p>{% endif %}
+          {% if erro_limite %}<p>{{ erro_limite }}</p>{% endif %}
+          {% for campo in formulario %}{% for mensagem_erro in campo.errors %}<p>{{ mensagem_erro }}</p>{% endfor %}{% endfor %}
+        </div>
+      {% endif %}
+      <form class="auth-form" method="post" novalidate>
+        {% csrf_token %}
+        <div class="form-group field-float">
+          <input type="text" id="codigo" name="codigo" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder=" " required>
+          <label for="codigo">Código de verificação</label>
+        </div>
+        <button class="primary-button" type="submit">Confirmar e-mail</button>
+      </form>
+      <form class="auth-resend" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="acao" value="reenviar">
+        <button type="submit">Reenviar código</button>
+      </form>
+      <p class="auth-switch"><a href="{% url 'login:login' %}">Voltar ao login</a></p>
+    </main>
+  </div>
+{% endblock %}

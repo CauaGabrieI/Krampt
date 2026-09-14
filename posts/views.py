@@ -1,25 +1,15 @@
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.views.decorators.http import require_POST
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
-from django.http import HttpResponse, JsonResponse
+from django.http import JsonResponse
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from notificacoes.services import notificar, remover_notificacao
 from .models import Comentario, Hashtag, Post
 from .forms import ComentarioForm, EditarPostForm
 from .services import comprimir_imagem_lossless, posts_para_exibir
-# Create your views here.
-
-
-def _conteudo_de_comentario(request):
-    conteudo = (request.POST.get("conteudo", "") or "").strip()
-    return conteudo if len(conteudo) <= 280 else ""
-
-def post_view(request):
-    return HttpResponse("post")
-
-
 def _pagina_de_retorno(request):
     caminho = request.POST.get("return_path", "")
     if url_has_allowed_host_and_scheme(
@@ -33,6 +23,16 @@ def _resposta_ajax(request, **dados):
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return JsonResponse(dados)
     return None
+
+
+def _erro_comentario(request, formulario, post_id):
+    erro = next(iter(formulario.errors.values()))[0]
+    resposta = _resposta_ajax(request, created=False, error=str(erro))
+    if resposta is not None:
+        resposta.status_code = 400
+        return resposta
+    messages.error(request, erro)
+    return redirect("posts:detalhe", post_id=post_id)
 
 
 @login_required
@@ -160,21 +160,18 @@ def republicar_post(request, post_id):
 def comentar_post(request, post_id):
     post = get_object_or_404(Post, pk=post_id, original__isnull=True)
     formulario = ComentarioForm(request.POST, request.FILES)
-    conteudo = ""
-    criado = False
-    if formulario.is_valid():
-        dados = formulario.cleaned_data
-        conteudo = dados["conteudo"]
-        comentario = Comentario.objects.create(
-            post=post,
-            autor=request.user,
-            conteudo=conteudo,
-            imagem=comprimir_imagem_lossless(dados.get("imagem")) if dados.get("imagem") else "",
-            audio=dados.get("audio") or "",
-        )
-        criado = True
-        notificar(post.autor, "comentario", request.user, post=post, comentario=comentario)
-    resposta = _resposta_ajax(request, created=criado)
+    if not formulario.is_valid():
+        return _erro_comentario(request, formulario, post.pk)
+    dados = formulario.cleaned_data
+    comentario = Comentario.objects.create(
+        post=post,
+        autor=request.user,
+        conteudo=dados["conteudo"],
+        imagem=comprimir_imagem_lossless(dados.get("imagem")) if dados.get("imagem") else "",
+        audio=dados.get("audio") or "",
+    )
+    notificar(post.autor, "comentario", request.user, post=post, comentario=comentario)
+    resposta = _resposta_ajax(request, created=True)
     if resposta:
         return resposta
     return _voltar_para_posts(request, post.pk)
@@ -231,28 +228,25 @@ def excluir_comentario(request, comentario_id):
 def responder_comentario(request, comentario_id):
     comentario = get_object_or_404(Comentario, pk=comentario_id)
     formulario = ComentarioForm(request.POST, request.FILES)
-    conteudo = ""
-    criado = False
-    if formulario.is_valid():
-        dados = formulario.cleaned_data
-        conteudo = dados["conteudo"]
-        resposta = Comentario.objects.create(
-            post=comentario.post,
-            autor=request.user,
-            resposta_para=comentario.resposta_para or comentario,
-            conteudo=conteudo,
-            imagem=comprimir_imagem_lossless(dados.get("imagem")) if dados.get("imagem") else "",
-            audio=dados.get("audio") or "",
-        )
-        criado = True
-        notificar(
-            comentario.autor,
-            "resposta",
-            request.user,
-            post=comentario.post,
-            comentario=resposta,
-        )
-    resposta_ajax = _resposta_ajax(request, created=criado)
+    if not formulario.is_valid():
+        return _erro_comentario(request, formulario, comentario.post_id)
+    dados = formulario.cleaned_data
+    resposta = Comentario.objects.create(
+        post=comentario.post,
+        autor=request.user,
+        resposta_para=comentario.resposta_para or comentario,
+        conteudo=dados["conteudo"],
+        imagem=comprimir_imagem_lossless(dados.get("imagem")) if dados.get("imagem") else "",
+        audio=dados.get("audio") or "",
+    )
+    notificar(
+        comentario.autor,
+        "resposta",
+        request.user,
+        post=comentario.post,
+        comentario=resposta,
+    )
+    resposta_ajax = _resposta_ajax(request, created=True)
     if resposta_ajax:
         return resposta_ajax
     return _voltar_para_posts(request, comentario.post_id)

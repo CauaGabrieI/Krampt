@@ -16,6 +16,12 @@
       <span class="material-symbols-outlined" aria-hidden="true">settings</span>
       <span>Configurações</span>
     </span>
+    {% if request.user.is_staff %}
+      <a class="account-menu-item" href="{% url 'testar_email' %}">
+        <span class="material-symbols-outlined" aria-hidden="true">mail</span>
+        <span>Testar e-mail</span>
+      </a>
+    {% endif %}
     <div class="account-menu-divider" aria-hidden="true"></div>
     <a class="account-menu-item account-menu-logout" href="{% url 'logout' %}">
       <img src="{% static 'imgs/saida.png' %}" alt="" aria-hidden="true">

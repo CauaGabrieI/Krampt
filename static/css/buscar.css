@@ -9,7 +9,7 @@
   min-width: 0;
   padding: 10px 16px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--surface-raised);
   color: var(--text);
   caret-color: var(--primary-light);

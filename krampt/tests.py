@@ -8,10 +8,15 @@ from django.contrib.sessions.models import Session
 
 class AutenticacaoTests(TestCase):
     def test_paginas_exigem_login(self):
-        for url in ["/", "/buscar/", "/perfil/", "/mensagens/", "/notificacoes/", "/post/"]:
+        usuario = get_user_model().objects.create_user(username="autor-do-post")
+        post = Post.objects.create(autor=usuario, conteudo="Teste")
+        for url in ["/", "/buscar/", "/perfil/", "/mensagens/", "/notificacoes/", reverse("posts:detalhe", args=[post.pk]), reverse("posts:editar", args=[post.pk])]:
             with self.subTest(url=url):
                 response = self.client.get(url)
                 self.assertRedirects(response, f"/login/?next={url}")
+
+    def test_rota_antiga_de_posts_nao_existe(self):
+        self.assertEqual(self.client.get("/post/").status_code, 404)
 
     def test_login_e_cadastro_continuam_publicos(self):
         for url in ["/login/", "/cadastro/"]:

@@ -20,7 +20,7 @@
 }
 .profile-page .profile-feed::-webkit-scrollbar { width: 8px; }
 .profile-page .profile-feed::-webkit-scrollbar-track { background: transparent; }
-.profile-page .profile-feed::-webkit-scrollbar-thumb { border-radius: 8px; background: var(--subtle); }
+.profile-page .profile-feed::-webkit-scrollbar-thumb { border-radius: 0; background: var(--subtle); }
 .profile-page .profile-feed::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
 .profile-page-heading {
@@ -34,7 +34,7 @@
 .profile-page-heading-text { min-width: 0; }
 .profile-page-heading h1 { overflow: hidden; padding: 0; font-size: 17px; text-overflow: ellipsis; white-space: nowrap; }
 .profile-page-heading p { margin: 2px 0 0; color: var(--subtle); font-size: 12px; }
-.profile-back-link { display: grid; flex: 0 0 auto; place-items: center; width: 36px; height: 36px; border-radius: 50%; color: var(--muted); }
+.profile-back-link { display: grid; flex: 0 0 auto; place-items: center; width: 36px; height: 36px; border-radius: 0; color: var(--muted); }
 .profile-back-link:hover { background: var(--surface-raised); color: var(--text); }
 
 .profile-cover {
@@ -50,7 +50,7 @@
   width: 300px;
   height: 300px;
   border: 1px solid rgba(167, 139, 250, .16);
-  border-radius: 50%;
+  border-radius: 0;
 }
 .profile-cover::before { top: -185px; right: -55px; }
 .profile-cover::after { right: 110px; bottom: -245px; }
@@ -80,7 +80,7 @@
   margin-bottom: 9px;
   padding: 7px 18px;
   border: 1px solid var(--subtle);
-  border-radius: 999px;
+  border-radius: 0;
   font-size: 13px;
   font-weight: 800;
   white-space: nowrap;
@@ -101,7 +101,7 @@
 .profile-tab { position: relative; display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 52px; padding: 10px 6px; color: var(--muted); font-size: 13px; font-weight: 800; white-space: nowrap; }
 .profile-tab:hover { background: var(--surface-raised); color: var(--text); }
 .profile-tab.is-active { color: var(--text); }
-.profile-tab.is-active::after { content: ""; position: absolute; right: 20%; bottom: 0; left: 20%; height: 3px; border-radius: 3px 3px 0 0; background: var(--primary); }
+.profile-tab.is-active::after { content: ""; position: absolute; right: 20%; bottom: 0; left: 20%; height: 3px; border-radius: 0; background: var(--primary); }
 .profile-tab span { color: var(--subtle); font-size: 11px; }
 .profile-tab-saved img { width: 17px; height: 17px; object-fit: contain; filter: brightness(0) invert(1); }
 .profile-media-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; padding: 3px; }

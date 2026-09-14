@@ -5,11 +5,11 @@
     {% for comentario in original.comentarios_raiz %}
       <div class="comment-item">
         <div class="comment-header">
-          <div class="comment-author">
+          <a class="comment-author" href="{% url 'profile:perfil_publico' comentario.autor.username %}">
             {% include "includes/avatar.html" with usuario=comentario.autor avatar_class="comment-avatar" %}
             <strong>{{ comentario.autor.first_name|default:comentario.autor.username }}</strong>
             <span class="comment-author-handle">@{{ comentario.autor.username }}</span>
-          </div>
+          </a>
           <form method="post" action="{% url 'posts:curtir_comentario' comentario.id %}" data-async-action data-action-type="comment-like">
             {% csrf_token %}
             <input type="hidden" name="return_to" value="{{ return_to }}">
@@ -30,7 +30,7 @@
             </form>
           {% endif %}
         </div>
-        {% if comentario.conteudo %}<p>{{ comentario.conteudo|linebreaksbr }}</p>{% endif %}
+        {% if comentario.conteudo %}<p>{{ comentario.conteudo|urlize|linebreaksbr }}</p>{% endif %}
         {% if comentario.imagem %}<img class="comment-image" src="{{ comentario.imagem.url }}" alt="Imagem anexada ao comentário">{% endif %}
         {% if comentario.audio %}<audio class="comment-audio" controls preload="metadata" src="{{ comentario.audio.url }}">Seu navegador não suporta áudio.</audio>{% endif %}
 
@@ -38,14 +38,14 @@
           <div class="comment-replies">
             {% for resposta in comentario.respostas.all %}
               <div class="comment-reply">
-                <div class="comment-reply-author">
+                <a class="comment-reply-author" href="{% url 'profile:perfil_publico' resposta.autor.username %}">
                   {% include "includes/avatar.html" with usuario=resposta.autor avatar_class="reply-avatar" %}
                   <div>
                     <strong>{{ resposta.autor.first_name|default:resposta.autor.username }}</strong>
                     <span>@{{ resposta.autor.username }}</span>
                   </div>
-                </div>
-                {% if resposta.conteudo %}<p>{{ resposta.conteudo|linebreaksbr }}</p>{% endif %}
+                </a>
+                {% if resposta.conteudo %}<p>{{ resposta.conteudo|urlize|linebreaksbr }}</p>{% endif %}
                 {% if resposta.imagem %}<img class="comment-image" src="{{ resposta.imagem.url }}" alt="Imagem anexada à resposta">{% endif %}
                 {% if resposta.audio %}<audio class="comment-audio" controls preload="metadata" src="{{ resposta.audio.url }}">Seu navegador não suporta áudio.</audio>{% endif %}
                 {% if resposta.autor == request.user %}
