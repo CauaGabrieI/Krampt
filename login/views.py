@@ -11,7 +11,8 @@ from django.views.decorators.http import require_http_methods
 from .forms import CadastroForm, LoginForm, VerificacaoForm, normalizar_usuario
 from .models import VerificacaoEmail
 from .services import (
-    bloqueio_ativo, conferir_codigo, emitir_codigo, limpar_falhas, registrar_falha,
+    bloqueio_ativo, conferir_codigo, emitir_codigo, limpar_falhas, mascarar_email,
+    registrar_falha,
 )
 
 
@@ -90,12 +91,20 @@ def verificar_email_view(request):
     if request.user.is_authenticated:
         return redirect('home')
     usuario_id = request.session.get('verificacao_usuario_id')
-    if not usuario_id or not VerificacaoEmail.objects.filter(usuario_id=usuario_id, verificado_em__isnull=True).exists():
+    verificacao_pendente = (
+        VerificacaoEmail.objects.filter(usuario_id=usuario_id, verificado_em__isnull=True)
+        .select_related('usuario')
+        .first()
+    )
+    if not usuario_id or not verificacao_pendente:
         request.session.pop('verificacao_usuario_id', None)
         return redirect('cadastro')
 
     formulario = VerificacaoForm(request.POST if request.method == 'POST' and request.POST.get('acao') != 'reenviar' else None)
-    contexto = {'formulario': formulario}
+    contexto = {
+        'formulario': formulario,
+        'email_mascarado': mascarar_email(verificacao_pendente.usuario.email),
+    }
     if request.method == 'POST':
         if bloqueio_ativo(request, 'verificar-ip'):
             return _muitos_pedidos('verificar_email.html', request, formulario)

@@ -3,8 +3,9 @@ from datetime import timedelta
 from hmac import compare_digest
 
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
+from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.crypto import salted_hmac
 
@@ -26,6 +27,24 @@ def _chave_limite(request, proposito, identidade=""):
     ip = request.META.get("REMOTE_ADDR", "desconhecido")
     valor = ip if not identidade else identidade.casefold()
     return _resumo(f"{proposito}:{valor}", "limite")
+
+
+def mascarar_email(email):
+    if not email or "@" not in email:
+        return email
+    local, dominio = email.split("@", 1)
+    return f"{local[0]}***@{dominio}" if local else f"***@{dominio}"
+
+
+def _enviar_email(destinatario, assunto, contexto):
+    texto = render_to_string("emails/verificacao_email.txt", contexto).strip()
+    html = render_to_string("emails/verificacao_email.html", contexto).strip()
+    mensagem = EmailMultiAlternatives(
+        assunto, texto, settings.DEFAULT_FROM_EMAIL, [destinatario]
+    )
+    mensagem.attach_alternative(html, "text/html")
+    if mensagem.send() != 1:
+        raise OSError("O serviço de e-mail não confirmou o envio.")
 
 
 def bloqueio_ativo(request, proposito, identidade=""):
@@ -74,15 +93,11 @@ def emitir_codigo(verificacao):
         codigo = f"{secrets.randbelow(1_000_000):06d}"
         novo_hash = _resumo(f"{verificacao.usuario_id}:{codigo}", "codigo-email")
 
-    enviados = send_mail(
+    _enviar_email(
+        verificacao.usuario.email,
         "Seu código de verificação do Krampt",
-        f"Seu código é {codigo}. Ele expira em 10 minutos. Se não foi você, ignore esta mensagem.",
-        settings.DEFAULT_FROM_EMAIL,
-        [verificacao.usuario.email],
-        fail_silently=False,
+        {"codigo": codigo},
     )
-    if enviados != 1:
-        raise OSError("O serviço de e-mail não confirmou o envio.")
     ja_enviado = bool(verificacao.ultimo_envio_em)
     verificacao.codigo_hash = novo_hash
     verificacao.expira_em = agora + TEMPO_CODIGO

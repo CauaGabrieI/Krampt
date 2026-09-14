@@ -161,7 +161,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'pt-br'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Sao_Paulo'
 
 USE_I18N = True
 
@@ -186,20 +186,22 @@ STATICFILES_DIRS = [
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "Krampt <nao-responda@krampt.local>")
+_EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
 MAILERS = {
     "default": {
         "BACKEND": (
             "django.core.mail.backends.smtp.EmailBackend"
-            if os.environ.get("EMAIL_HOST") or not DEBUG
+            if _EMAIL_HOST or not DEBUG
             else "django.core.mail.backends.console.EmailBackend"
         ),
         "OPTIONS": {
-            "host": os.environ.get("EMAIL_HOST", "localhost"),
+            "host": _EMAIL_HOST or "localhost",
             "port": int(os.environ.get("EMAIL_PORT", "587")),
             "username": os.environ.get("EMAIL_HOST_USER", ""),
             "password": os.environ.get("EMAIL_HOST_PASSWORD", ""),
             "use_tls": os.environ.get("EMAIL_USE_TLS", "true").lower() == "true",
             "use_ssl": os.environ.get("EMAIL_USE_SSL", "false").lower() == "true",
-        } if os.environ.get("EMAIL_HOST") or not DEBUG else {},
+            "timeout": int(os.environ.get("EMAIL_TIMEOUT", "10")),
+        } if _EMAIL_HOST or not DEBUG else {},
     },
 }

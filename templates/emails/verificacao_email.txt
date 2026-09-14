@@ -1,0 +1,5 @@
+Krampt
+
+Seu código é {{ codigo }}.
+
+Este código de verificação expira em 10 minutos. Se não foi você quem solicitou, ignore esta mensagem e nenhuma alteração será feita na sua conta.

@@ -18,7 +18,7 @@
     <main class="auth-panel">
       <p class="eyebrow">Mais um passo</p>
       <h2>Verificar e-mail</h2>
-      <p class="auth-subtitle">O código tem 6 números e vale por 10 minutos.</p>
+      <p class="auth-subtitle">Enviamos um código para <strong>{{ email_mascarado }}</strong>. O código tem 6 números e vale por 10 minutos.</p>
       {% if mensagem %}<div class="auth-success" role="status">{{ mensagem }}</div>{% endif %}
       {% if erro or erro_limite or formulario.errors %}
         <div class="error-message" role="alert">

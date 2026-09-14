@@ -8,7 +8,10 @@ from datetime import timedelta
 import re
 from unittest.mock import patch
 
-from login.models import VerificacaoEmail
+from login.models import LimiteAutenticacao, VerificacaoEmail
+from login.services import mascarar_email
+from django.core import management
+from io import StringIO
 
 User = get_user_model()
 
@@ -212,7 +215,7 @@ class VerificacaoEmailTests(TestCase):
         self.assertRedirects(outro_navegador.get(reverse('verificar_email')), reverse('cadastro'))
 
     def test_falha_no_email_nao_deixa_conta_inativa_presa(self):
-        with patch('login.services.send_mail', side_effect=OSError('SMTP indisponível')):
+        with patch('login.services._enviar_email', side_effect=OSError('SMTP indisponível')):
             response = self.client.post(reverse('cadastro'), {
                 'name': 'Ana Maria', 'username': 'ana', 'email': 'ana@example.com',
                 'password': 'Nuvem!Laranja927', 'password_confirm': 'Nuvem!Laranja927',
@@ -233,3 +236,74 @@ class VerificacaoEmailTests(TestCase):
         codigo = self.codigo_email()
         self.assertEqual(client.post(reverse('verificar_email'), {'codigo': codigo}).status_code, 403)
         self.assertFalse(User.objects.get(username='ana').is_active)
+
+
+class MascararEmailTests(TestCase):
+    def test_mascara_local_do_email(self):
+        self.assertEqual(mascarar_email("ana@example.com"), "a***@example.com")
+        self.assertEqual(mascarar_email("carlos@dominio.org.br"), "c***@dominio.org.br")
+
+    def test_email_sem_arroba_retorna_original(self):
+        self.assertEqual(mascarar_email("invalido"), "invalido")
+        self.assertIsNone(mascarar_email(None))
+
+
+class VerificacaoEmailMascaradoTests(TestCase):
+    def test_pagina_mostra_email_mascarado(self):
+        self.client.post(reverse("cadastro"), {
+            "name": "Ana Maria", "username": "ana", "email": "ana@example.com",
+            "password": "Nuvem!Laranja927", "password_confirm": "Nuvem!Laranja927",
+        })
+        resposta = self.client.get(reverse("verificar_email"))
+        self.assertContains(resposta, "a***@example.com")
+        self.assertNotContains(resposta, "ana@example.com")
+
+
+class LimparAutenticacaoExpiradaTests(TestCase):
+    def _criar_contas(self):
+        antiga = User.objects.create_user(username="antiga", password="senha")
+        antiga.date_joined = timezone.now() - timedelta(days=5)
+        antiga.is_active = False
+        antiga.save()
+        VerificacaoEmail.objects.create(usuario=antiga, codigo_hash="x" * 64, expira_em=timezone.now() - timedelta(hours=2))
+        recente = User.objects.create_user(username="recente", password="senha")
+        recente.date_joined = timezone.now() - timedelta(hours=2)
+        recente.is_active = False
+        recente.save()
+        VerificacaoEmail.objects.create(usuario=recente)
+        verificada = User.objects.create_user(username="verificada", password="senha")
+        verificada.date_joined = timezone.now() - timedelta(days=5)
+        verificada.save()
+        VerificacaoEmail.objects.create(usuario=verificada, verificado_em=timezone.now())
+        return antiga, recente, verificada
+
+    def _criar_limites(self):
+        LimiteAutenticacao.objects.create(chave="antigo", tentativas=1, janela_iniciada_em=timezone.now() - timedelta(days=5))
+        LimiteAutenticacao.objects.create(chave="bloqueado_expirado", tentativas=5, janela_iniciada_em=timezone.now() - timedelta(days=5), bloqueado_ate=timezone.now() - timedelta(hours=1))
+        LimiteAutenticacao.objects.create(chave="bloqueado_ativa", tentativas=5, janela_iniciada_em=timezone.now() - timedelta(days=5), bloqueado_ate=timezone.now() + timedelta(hours=1))
+        LimiteAutenticacao.objects.create(chave="recente", tentativas=1, janela_iniciada_em=timezone.now() - timedelta(hours=2))
+
+    def test_dry_run_nao_altera_nada(self):
+        antiga, _, _ = self._criar_contas()
+        self._criar_limites()
+        self.assertEqual(management.call_command("limpar_autenticacao_expirada", "--dry-run", stdout=StringIO()), None)
+        self.assertTrue(User.objects.filter(pk=antiga.pk).exists())
+        self.assertEqual(LimiteAutenticacao.objects.count(), 4)
+
+    def test_remove_apenas_o_expirado(self):
+        antiga, recente, verificada = self._criar_contas()
+        self._criar_limites()
+        management.call_command("limpar_autenticacao_expirada", stdout=StringIO())
+        self.assertFalse(User.objects.filter(pk=antiga.pk).exists())
+        self.assertTrue(User.objects.filter(pk=recente.pk).exists())
+        self.assertTrue(User.objects.filter(pk=verificada.pk).exists())
+        self.assertEqual(LimiteAutenticacao.objects.filter(chave="antigo").count(), 0)
+        self.assertEqual(LimiteAutenticacao.objects.filter(chave="bloqueado_expirado").count(), 0)
+        self.assertEqual(LimiteAutenticacao.objects.filter(chave="bloqueado_ativa").count(), 1)
+        self.assertEqual(LimiteAutenticacao.objects.filter(chave="recente").count(), 1)
+
+    def test_prazo_personalizado(self):
+        antiga, recente, _ = self._criar_contas()
+        management.call_command("limpar_autenticacao_expirada", "--prazo-horas", 1, stdout=StringIO())
+        self.assertFalse(User.objects.filter(pk=antiga.pk).exists())
+        self.assertFalse(User.objects.filter(pk=recente.pk).exists())

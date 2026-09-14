@@ -31,7 +31,6 @@ def testar_email_view(request):
                 "Este é um teste de envio de e-mail do Krampt. Nenhuma ação é necessária.",
                 settings.DEFAULT_FROM_EMAIL,
                 [formulario.cleaned_data["email"]],
-                fail_silently=False,
             )
             if enviados != 1:
                 raise OSError("O serviço de e-mail não confirmou o envio.")
