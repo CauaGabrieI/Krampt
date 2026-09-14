@@ -32,11 +32,13 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     ".trycloudflare.com",
+    "krampt.onrender.com",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://*.trycloudflare.com",
-] 
+    "https://krampt.onrender.com",
+]
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")   
 
