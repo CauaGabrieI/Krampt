@@ -15,6 +15,40 @@ LINK_OU_HASHTAG_RE = re.compile(
     re.IGNORECASE | re.UNICODE,
 )
 
+MAX_LADO_IMAGEM = 8000
+MAX_PIXELS_IMAGEM = 30_000_000
+MAX_FRAMES_GIF = 150
+
+
+def validar_limites_da_imagem(arquivo):
+    """Valida dimensão, total de pixels e quadros de GIF.
+
+    Retorna (ok, mensagem). Não desloca o cursor do arquivo.
+    """
+    from io import BytesIO
+
+    from PIL import Image
+
+    posicao = arquivo.tell()
+    arquivo.seek(0)
+    dados = arquivo.read()
+    arquivo.seek(posicao)
+    try:
+        with Image.open(BytesIO(dados)) as imagem:
+            try:
+                largura, altura = imagem.size
+            except (Image.DecompressionBombError, ValueError, OSError):
+                return False, "Não foi possível ler as dimensões da imagem."
+            if largura > MAX_LADO_IMAGEM or altura > MAX_LADO_IMAGEM:
+                return False, f"A imagem deve ter no máximo {MAX_LADO_IMAGEM} pixels por lado."
+            if largura * altura > MAX_PIXELS_IMAGEM:
+                return False, "A imagem tem pixels demais para ser processada."
+            if getattr(imagem, "n_frames", 1) > MAX_FRAMES_GIF:
+                return False, f"GIFs animados devem ter no máximo {MAX_FRAMES_GIF} quadros."
+            return True, ""
+    except (Image.DecompressionBombError, ValueError, OSError):
+        return False, "Não foi possível processar a imagem."
+
 
 def comprimir_imagem_lossless(uploaded_file):
     if not uploaded_file or getattr(uploaded_file, "image", None) is None:

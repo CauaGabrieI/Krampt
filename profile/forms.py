@@ -1,10 +1,15 @@
 from django import forms
 
+from posts.services import validar_limites_da_imagem
+
 def validar_foto(foto):
     if foto.size > 5 * 1024 * 1024:
         raise forms.ValidationError("A foto deve ter no máximo 5 MB.")
     if foto.image.format not in {"JPEG", "PNG", "WEBP"}:
         raise forms.ValidationError("Use uma imagem JPG, PNG ou WebP.")
+    dentro_do_limite, mensagem = validar_limites_da_imagem(foto)
+    if not dentro_do_limite:
+        raise forms.ValidationError(mensagem)
     return foto
 
 

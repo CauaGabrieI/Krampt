@@ -291,6 +291,23 @@ class PerfilViewTests(TestCase):
         self.assertTrue(response.context["formulario"].errors)
         self.assertFalse(Perfil.objects.filter(usuario=self.usuario).exists())
 
+    def test_foto_com_lado_acima_do_limite_e_rejeitada(self):
+        self.client.force_login(self.usuario)
+
+        larga = BytesIO()
+        Image.new("RGB", (9000, 10), color="red").save(larga, format="PNG")
+        response = self.client.post(
+            reverse("profile:editar"),
+            {
+                "nome": "Cauã",
+                "foto": SimpleUploadedFile("larga.png", larga.getvalue(), content_type="image/png"),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["formulario"].errors)
+        self.assertFalse(Perfil.objects.filter(usuario=self.usuario).exists())
+
     def test_troca_foto_remove_arquivo_anterior(self):
         self.client.force_login(self.usuario)
         self.client.post(reverse("profile:editar"), {"nome": "Cauã", "foto": foto_de_teste()})

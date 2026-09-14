@@ -1,5 +1,7 @@
 from django import forms
 
+from .services import validar_limites_da_imagem
+
 AUDIO_TYPES = {"audio/mpeg", "audio/wav", "audio/x-wav", "audio/ogg", "audio/webm", "audio/mp4", "audio/x-m4a"}
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_IMAGENS_POST = 4
@@ -8,6 +10,10 @@ MAX_IMAGENS_POST = 4
 def validar_imagem(imagem):
     if imagem and imagem.size > MAX_UPLOAD_BYTES:
         raise forms.ValidationError("Cada imagem deve ter no máximo 10 MB.")
+    if imagem:
+        dentro_do_limite, mensagem = validar_limites_da_imagem(imagem)
+        if not dentro_do_limite:
+            raise forms.ValidationError(mensagem)
     return imagem
 
 

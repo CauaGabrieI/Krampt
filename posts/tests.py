@@ -2,6 +2,7 @@ from io import BytesIO
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+from django import forms
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
@@ -631,3 +632,93 @@ class EditarPostTests(TestCase):
 
         self.client.force_login(self.outro_usuario)
         self.assertNotContains(self.client.get(reverse("home")), reverse("posts:editar", args=[self.post.pk]))
+
+
+from django.core.files.storage import default_storage
+from django.test import TransactionTestCase
+from posts import services as posts_services
+from posts.forms import validar_imagem
+
+
+class LimitesDeImagemTests(TestCase):
+    def _formulario_faltando_conteudo(self, imagem):
+        dados = {"conteudo": ""}
+        arquivos = {"imagem": [imagem]}
+        return dados, arquivos
+
+    def test_imagem_com_lado_acima_do_limite_rejeitada(self):
+        larga = BytesIO()
+        Image.new("RGB", (9000, 10), color="red").save(larga, format="PNG")
+        upload = SimpleUploadedFile("larga.png", larga.getvalue(), content_type="image/png")
+        with self.assertRaises(forms.ValidationError) as contexto:
+            validar_imagem(upload)
+        self.assertIn("8000 pixels", str(contexto.exception))
+
+    def test_imagem_com_muitos_pixels_rejeitada(self):
+        dados = BytesIO()
+        Image.new("RGB", (50, 50), color="purple").save(dados, format="PNG")
+        upload = SimpleUploadedFile("muita.png", dados.getvalue(), content_type="image/png")
+        with patch.object(posts_services, "MAX_PIXELS_IMAGEM", 1000):
+            with self.assertRaises(forms.ValidationError) as contexto:
+                validar_imagem(upload)
+        self.assertIn("pixels demais", str(contexto.exception))
+
+    def test_gif_com_muitos_quadros_rejeitado(self):
+        dados = BytesIO()
+        primeira = Image.new("RGB", (8, 8), color="green")
+        segunda = Image.new("RGB", (8, 8), color="blue")
+        terceira = Image.new("RGB", (8, 8), color="red")
+        primeira.save(
+            dados, format="GIF", save_all=True,
+            append_images=[segunda, terceira], duration=[100, 150, 200], loop=0,
+        )
+        upload = SimpleUploadedFile("muitos.gif", dados.getvalue(), content_type="image/gif")
+        with patch.object(posts_services, "MAX_FRAMES_GIF", 2):
+            with self.assertRaises(forms.ValidationError) as contexto:
+                validar_imagem(upload)
+        self.assertIn("quadros", str(contexto.exception))
+
+    def test_imagem_bomba_de_descompressao_e_rejeitada_sem_500(self):
+        erro = Image.DecompressionBombError("bombou")
+        with patch("PIL.Image.open", side_effect=erro):
+            with self.assertRaises(forms.ValidationError) as contexto:
+                validar_imagem(imagem_de_teste())
+        self.assertIn("Não foi possível processar a imagem", str(contexto.exception))
+
+
+class ExclusaoDeArquivosFisicosTests(TransactionTestCase):
+    def setUp(self):
+        self.pasta = TemporaryDirectory()
+        self.configuracao = override_settings(MEDIA_ROOT=self.pasta.name)
+        self.configuracao.enable()
+        self.usuario = get_user_model().objects.create_user(username="ana", password="senha-teste")
+        self.client.force_login(self.usuario)
+
+    def tearDown(self):
+        self.configuracao.disable()
+        self.pasta.cleanup()
+
+    def test_excluir_post_remove_imagem_e_audio_do_armazenamento(self):
+        post = Post.objects.create(
+            autor=self.usuario,
+            conteudo="com media",
+            imagem=imagem_de_teste("foto.png"),
+        )
+        caminho = post.imagem.name
+        self.assertTrue(default_storage.exists(caminho))
+        resposta = self.client.post(reverse("posts:excluir", args=[post.pk]), {"return_path": reverse("home")})
+        self.assertEqual(resposta.status_code, 302)
+        self.assertFalse(Post.objects.filter(pk=post.pk).exists())
+        self.assertFalse(default_storage.exists(caminho))
+
+    def test_excluir_comentario_remove_imagem_do_armazenamento(self):
+        post = Post.objects.create(autor=self.usuario, conteudo="origem")
+        comentario = Comentario.objects.create(
+            post=post,
+            autor=self.usuario,
+            imagem=imagem_de_teste("comentario.png"),
+        )
+        caminho = comentario.imagem.name
+        self.assertTrue(default_storage.exists(caminho))
+        self.client.post(reverse("posts:excluir_comentario", args=[comentario.pk]), {"return_path": reverse("home")})
+        self.assertFalse(default_storage.exists(caminho))
