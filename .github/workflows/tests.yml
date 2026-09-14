@@ -1,0 +1,31 @@
+name: Tests
+
+on:
+  push:
+    branches: ["main", "chore/polish-krampt"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.13"]
+    env:
+      SECRET_KEY: chave-de-teste-para-ci-nao-usar-em-producao
+      DEBUG: "true"
+      ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+      - name: Checagens do Django
+        run: python manage.py check
+      - name: Migrações pendentes
+        run: python manage.py makemigrations --check --dry-run
+      - name: Testes
+        run: python manage.py test
