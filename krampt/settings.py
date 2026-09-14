@@ -191,9 +191,10 @@ STATICFILES_DIRS = [
 # WhiteNoise, compilados e com nome hasheado via collectstatic --noinput.
 if os.environ.get("WHITENOISE", "").lower() == "true":
     STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
         "staticfiles": {
             "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
-        }
+        },
     }
 
 
