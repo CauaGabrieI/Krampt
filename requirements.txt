@@ -4,3 +4,5 @@ pillow==12.3.0
 python-dotenv==1.2.3
 sqlparse==0.6.0
 psycopg[binary]
+gunicorn==26.2.0
+whitenoise==6.12.0

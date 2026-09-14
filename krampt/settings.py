@@ -31,16 +31,21 @@ DEBUG = os.environ.get(
 ).lower() == "true"
 
 ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    ".trycloudflare.com",
-    "krampt.onrender.com",
+    host.strip()
+    for host in os.environ.get(
+        "ALLOWED_HOSTS", "localhost,127.0.0.1"
+    ).split(",")
+    if host.strip()
 ]
 
-CSRF_TRUSTED_ORIGINS = [
-    "https://*.trycloudflare.com",
-    "https://krampt.onrender.com",
-]
+if os.environ.get("CSRF_TRUSTED_ORIGINS"):
+    CSRF_TRUSTED_ORIGINS = [
+        origem.strip()
+        for origem in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",")
+        if origem.strip()
+    ]
+else:
+    CSRF_TRUSTED_ORIGINS = []
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")   
 
@@ -74,6 +79,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -180,6 +186,15 @@ STATICFILES_DIRS = [
     BASE_DIR / "static",
     ("imgs", BASE_DIR / "imgs"),
 ]
+
+# Em produção (WHITENOISE=true) os arquivos estáticos são servidos pelo
+# WhiteNoise, compilados e com nome hasheado via collectstatic --noinput.
+if os.environ.get("WHITENOISE", "").lower() == "true":
+    STORAGES = {
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        }
+    }
 
 
 # Email
