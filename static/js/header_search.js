@@ -1,5 +1,6 @@
-<script>
+(function () {
   const search = document.querySelector('.header-search');
+  if (!search) return;
   const searchButton = search.querySelector('.search-trigger');
   const searchInput = search.querySelector('.header-search-input');
 
@@ -21,4 +22,4 @@
       toggleSearch(true);
     }
   });
-</script>
+})();

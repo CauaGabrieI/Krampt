@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Discussão | Krampt{% endblock %}
 {% block content %}
   {% include "includes/site_header.html" with active_page="home" %}
@@ -20,7 +21,7 @@
   </div>
 {% endblock %}
 {% block scripts %}
-  {% include "includes/header_search_script.html" %}
-  {% include "includes/account_menu_script.html" %}
-  {% include "includes/post_share_script.html" %}
+  <script src="{% static 'js/header_search.js' %}" defer></script>
+  <script src="{% static 'js/account_menu.js' %}" defer></script>
+  <script src="{% static 'js/post_share.js' %}" defer></script>
 {% endblock %}

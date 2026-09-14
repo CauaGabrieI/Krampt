@@ -1,5 +1,6 @@
-<script>
+(function () {
   const accountMenus = [...document.querySelectorAll('[data-account-menu]')];
+  if (!accountMenus.length) return;
 
   function setAccountMenuOpen(menu, open) {
     const trigger = menu.querySelector('.account-menu-trigger');
@@ -36,4 +37,4 @@
       openMenu.querySelector('.account-menu-trigger').focus();
     }
   });
-</script>
+})();

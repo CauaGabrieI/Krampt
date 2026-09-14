@@ -55,6 +55,6 @@
   </div>
 {% endblock %}
 {% block scripts %}
-  {% include "includes/header_search_script.html" %}
-  {% include "includes/account_menu_script.html" %}
+  <script src="{% static 'js/header_search.js' %}" defer></script>
+  <script src="{% static 'js/account_menu.js' %}" defer></script>
 {% endblock %}

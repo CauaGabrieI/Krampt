@@ -1,7 +1,20 @@
 /* Camada visual compartilhada; carregada após os estilos de cada página. */
-*, *::before, *::after { border-radius: 0 !important; }
-*::file-selector-button { border-radius: 0 !important; }
-.avatar, .profile-picture { border-radius: 50% !important; object-fit: cover; }
+:root {
+  --radius: 0px;
+  --radius-lg: 0px;
+}
+*, *::before, *::after { border-radius: var(--radius); }
+*::file-selector-button { border-radius: var(--radius); }
+.avatar, .profile-picture { border-radius: 50%; object-fit: cover; }
+
+.rail-card,
+.auth-layout,
+.emoji-picker,
+.post-menu-panel,
+.account-menu-panel,
+.profile-cover,
+.edit-profile-cover,
+.pagination-link { border-radius: var(--radius-lg); }
 
 body { background: var(--background); color: var(--text); }
 .site-header,
