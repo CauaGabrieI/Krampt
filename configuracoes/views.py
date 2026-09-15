@@ -2,9 +2,8 @@ import json
 from smtplib import SMTPException
 
 from django.contrib import messages
-from django.contrib.auth import logout, update_session_auth_hash
+from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.sessions.models import Session
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
@@ -17,9 +16,7 @@ from login.models import VerificacaoEmail
 from login.services import emitir_codigo
 from mensagens.models import Mensagem
 from posts.models import Post
-from profile.forms import EditarPerfilForm
 from profile.models import Perfil
-from profile.services import salvar_edicao_perfil
 
 from .forms import (
     AparenciaForm,
@@ -35,7 +32,6 @@ from .models import PreferenciasUsuario
 
 SECOES = (
     ("conta", "Conta", "manage_accounts"),
-    ("perfil", "Perfil", "person"),
     ("privacidade", "Privacidade", "lock"),
     ("mensagens", "Mensagens", "chat"),
     ("notificacoes", "Notificações", "notifications"),
@@ -74,23 +70,10 @@ def _formulario_da_secao(request, secao, preferencias):
             request.user,
             dados,
             initial={
-                "nome": request.user.first_name or request.user.username,
                 "username": request.user.username,
                 "email": request.user.email,
             },
         )
-    if secao == "perfil":
-        perfil = Perfil.objects.filter(usuario=request.user).first()
-        return EditarPerfilForm(
-            dados,
-            request.FILES if request.method == "POST" else None,
-            initial={
-                "nome": request.user.first_name or request.user.username,
-                "biografia": perfil.biografia if perfil else "",
-            },
-        )
-    if secao == "seguranca":
-        return PasswordChangeForm(request.user, dados)
     classe = FORMULARIOS_PREFERENCIAS.get(secao)
     return classe(dados, instance=preferencias) if classe else None
 
@@ -189,12 +172,6 @@ def configuracoes_view(request, secao="conta"):
                         return redirect("verificar_email")
                     messages.success(request, "Alterações salvas.")
                     return redirect("configuracoes:secao", secao=secao)
-            elif secao == "perfil":
-                perfil = Perfil.objects.filter(usuario=request.user).first()
-                salvar_edicao_perfil(request.user, perfil, formulario.cleaned_data)
-            elif secao == "seguranca":
-                usuario = formulario.save()
-                update_session_auth_hash(request, usuario)
             else:
                 formulario.save()
             if secao != "conta":
@@ -209,7 +186,6 @@ def configuracoes_view(request, secao="conta"):
         "preferencias": preferencias,
         "email_verificado": bool(verificacao and verificacao.verificado_em),
         "sessoes": _sessoes_do_usuario(request) if secao == "seguranca" else (),
-        "perfil": Perfil.objects.filter(usuario=request.user).first() if secao == "perfil" else None,
     }
     return render(request, "configuracoes.html", contexto)
 

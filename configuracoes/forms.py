@@ -9,19 +9,17 @@ User = get_user_model()
 
 
 class ContaForm(forms.Form):
-    nome = forms.CharField(label="Nome de exibição", max_length=150)
     username = forms.CharField(label="Usuário", max_length=150)
-    email = forms.EmailField(label="E-mail", max_length=254)
+    email = forms.EmailField(
+        label="E-mail",
+        max_length=254,
+        required=False,
+        help_text="Deixe como está para manter seu e-mail atual.",
+    )
 
     def __init__(self, usuario, *args, **kwargs):
         self.usuario = usuario
         super().__init__(*args, **kwargs)
-
-    def clean_nome(self):
-        nome = " ".join(self.cleaned_data["nome"].split())
-        if not nome:
-            raise forms.ValidationError("Informe seu nome.")
-        return nome
 
     def clean_username(self):
         username = normalizar_usuario(self.cleaned_data["username"])
@@ -31,17 +29,18 @@ class ContaForm(forms.Form):
         return username
 
     def clean_email(self):
-        email = self.cleaned_data["email"].strip().lower()
+        email = (self.cleaned_data.get("email") or self.usuario.email).strip().lower()
+        if email == self.usuario.email.strip().lower():
+            return email
         if User.objects.exclude(pk=self.usuario.pk).filter(email__iexact=email).exists():
             raise forms.ValidationError("Este e-mail já está em uso.")
         return email
 
     def save(self):
         email_alterado = self.usuario.email.lower() != self.cleaned_data["email"]
-        self.usuario.first_name = self.cleaned_data["nome"]
         self.usuario.username = self.cleaned_data["username"]
         self.usuario.email = self.cleaned_data["email"]
-        self.usuario.save(update_fields=["first_name", "username", "email"])
+        self.usuario.save(update_fields=["username", "email"])
         return email_alterado
 
 

@@ -3,7 +3,7 @@
 {% block title %}Configurações | Krampt{% endblock %}
 {% block body_class %}settings-page{% endblock %}
 {% block extra_head %}
-  <link rel="stylesheet" href="{% static 'css/configuracoes.css' %}?v=1">
+  <link rel="stylesheet" href="{% static 'css/configuracoes.css' %}?v=account-ux-2">
 {% endblock %}
 {% block content %}
   {% include "includes/site_header.html" %}
@@ -48,11 +48,6 @@
             {% include "includes/settings_form_fields.html" %}
             <button class="primary-button" type="submit">Salvar alterações</button>
           </form>
-          <div class="settings-group">
-            <h3>Senha</h3>
-            <p>Use a seção Segurança para trocar sua senha com os validadores protegidos do Django.</p>
-            <a class="settings-secondary-button" href="{% url 'configuracoes:secao' 'seguranca' %}">Alterar senha</a>
-          </div>
           <div class="settings-danger">
             <h3>Zona de risco</h3>
             <p>Digite seu @username para desativar. Para excluir definitivamente, informe também sua senha atual.</p>
@@ -76,18 +71,6 @@
             </div>
           </div>
 
-        {% elif secao == "perfil" %}
-          <div class="settings-section-heading"><h2>Perfil</h2><p>Edite as informações públicas e as imagens do seu perfil.</p></div>
-          <div class="settings-profile-preview">
-            {% include "includes/avatar.html" with usuario=request.user %}
-            <div><strong>{{ request.user.first_name|default:request.user.username }}</strong><span>@{{ request.user.username }}</span></div>
-          </div>
-          <form class="settings-form" method="post" enctype="multipart/form-data">
-            {% csrf_token %}
-            {% include "includes/settings_form_fields.html" %}
-            <button class="primary-button" type="submit">Salvar perfil</button>
-          </form>
-
         {% elif secao == "privacidade" %}
           <div class="settings-section-heading"><h2>Privacidade</h2><p>Controle quem pode iniciar conversas com você.</p></div>
           <form class="settings-form" method="post">{% csrf_token %}{% include "includes/settings_form_fields.html" %}<button class="primary-button" type="submit">Salvar alterações</button></form>
@@ -105,11 +88,11 @@
 
         {% elif secao == "seguranca" %}
           <div class="settings-section-heading"><h2>Segurança</h2><p>Atualize sua senha e controle sessões autenticadas.</p></div>
-          <form class="settings-form" method="post">
-            {% csrf_token %}<input type="hidden" name="acao" value="salvar">
-            {% include "includes/settings_form_fields.html" %}
-            <button class="primary-button" type="submit">Alterar senha</button>
-          </form>
+          <div class="settings-group">
+            <h3>Senha</h3>
+            <p>Use o fluxo seguro de alteração por e-mail já existente no Krampt.</p>
+            <a class="primary-button" href="{% url 'login:password_reset' %}">Alterar senha</a>
+          </div>
           <div class="settings-group">
             <h3>Sessões ativas</h3>
             <ul class="settings-session-list">

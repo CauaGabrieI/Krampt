@@ -63,9 +63,6 @@
 .settings-feedback--success { border-color: #396c53; color: #a5e5bd; }
 .settings-feedback--error, .settings-error { color: #ff9ca9; }
 .settings-error { margin: -10px 0 0; font-size: 11px; }
-.settings-profile-preview { display: flex; align-items: center; gap: 12px; margin-top: 22px; }
-.settings-profile-preview div { display: grid; gap: 2px; }
-.settings-profile-preview span { color: var(--muted); font-size: 12px; }
 .settings-session-list { display: grid; gap: 0; margin: 17px 0 0; padding: 0; list-style: none; }
 .settings-session-list li { display: flex; justify-content: space-between; gap: 16px; padding: 11px 0; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
 .settings-session-list strong { color: var(--primary-light); }

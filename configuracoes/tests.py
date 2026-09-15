@@ -11,8 +11,6 @@ from mensagens.models import Conversa, Mensagem
 from notificacoes.models import Notificacao
 from notificacoes.services import notificar
 from posts.models import Post
-from profile.models import Perfil
-
 from .models import PreferenciasUsuario
 
 User = get_user_model()
@@ -38,25 +36,43 @@ class ConfiguracoesTests(TestCase):
         self.assertEqual(resposta.status_code, 302)
 
     def test_todas_as_secoes_abrem(self):
-        for secao in ("conta", "perfil", "privacidade", "mensagens", "notificacoes", "seguranca", "aparencia", "conteudo", "dados"):
+        for secao in ("conta", "privacidade", "mensagens", "notificacoes", "seguranca", "aparencia", "conteudo", "dados"):
             with self.subTest(secao=secao):
                 resposta = self.client.get(reverse("configuracoes:secao", args=[secao]))
                 self.assertEqual(resposta.status_code, 200)
 
-    def test_atualiza_conta_sem_trocar_email(self):
+    def test_salva_username_mantendo_o_proprio_email_sem_nova_verificacao(self):
         resposta = self.client.post(
             reverse("configuracoes:secao", args=["conta"]),
-            {"nome": "Cauã Gabriel", "username": "caua_novo", "email": self.caua.email},
+            {"username": "caua_novo", "email": self.caua.email},
         )
         self.assertRedirects(resposta, reverse("configuracoes:secao", args=["conta"]))
         self.caua.refresh_from_db()
         self.assertEqual(self.caua.username, "caua_novo")
-        self.assertEqual(self.caua.first_name, "Cauã Gabriel")
+        self.assertTrue(self.caua.is_active)
+        self.assertEqual(len(mail.outbox), 0)
 
-    def test_rejeita_username_e_email_duplicados(self):
+    def test_email_vazio_preserva_o_email_atual(self):
         resposta = self.client.post(
             reverse("configuracoes:secao", args=["conta"]),
-            {"nome": "Cauã", "username": " ANA ", "email": "ANA@example.com"},
+            {"username": "caua_novo", "email": ""},
+        )
+        self.assertRedirects(resposta, reverse("configuracoes:secao", args=["conta"]))
+        self.caua.refresh_from_db()
+        self.assertEqual(self.caua.email, "caua@example.com")
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_proprio_email_atual_nao_gera_erro_de_unicidade(self):
+        resposta = self.client.post(
+            reverse("configuracoes:secao", args=["conta"]),
+            {"username": "caua", "email": "CAUA@example.com"},
+        )
+        self.assertRedirects(resposta, reverse("configuracoes:secao", args=["conta"]))
+
+    def test_rejeita_username_e_email_de_outro_usuario(self):
+        resposta = self.client.post(
+            reverse("configuracoes:secao", args=["conta"]),
+            {"username": " ANA ", "email": "ANA@example.com"},
         )
         self.assertEqual(resposta.status_code, 200)
         self.assertContains(resposta, "Este usuário já está em uso.")
@@ -65,7 +81,7 @@ class ConfiguracoesTests(TestCase):
     def test_troca_de_email_exige_nova_verificacao(self):
         resposta = self.client.post(
             reverse("configuracoes:secao", args=["conta"]),
-            {"nome": "Cauã", "username": "caua", "email": "novo@example.com"},
+            {"username": "caua", "email": "novo@example.com"},
         )
         self.assertRedirects(resposta, reverse("verificar_email"))
         self.caua.refresh_from_db()
@@ -73,26 +89,21 @@ class ConfiguracoesTests(TestCase):
         self.assertFalse(self.caua.is_active)
         self.assertEqual(mail.outbox[-1].to, ["novo@example.com"])
 
-    def test_altera_senha_e_mantem_sessao(self):
-        resposta = self.client.post(
-            reverse("configuracoes:secao", args=["seguranca"]),
-            {"old_password": "Senha!Forte123", "new_password1": "Nova!SenhaForte456", "new_password2": "Nova!SenhaForte456"},
+    def test_aba_perfil_nao_existe_e_editor_original_continua_acessivel(self):
+        conta = self.client.get(reverse("configuracoes:inicio"))
+        self.assertNotContains(conta, "/configuracoes/perfil/")
+        self.assertNotContains(conta, 'name="nome"')
+        self.assertEqual(
+            self.client.get(reverse("configuracoes:secao", args=["perfil"])).status_code,
+            404,
         )
-        self.assertRedirects(resposta, reverse("configuracoes:secao", args=["seguranca"]))
-        self.caua.refresh_from_db()
-        self.assertTrue(self.caua.check_password("Nova!SenhaForte456"))
-        self.assertEqual(self.client.get(reverse("configuracoes:inicio")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("profile:editar")).status_code, 200)
 
-    def test_edicao_de_perfil_reutiliza_campos_existentes(self):
-        resposta = self.client.post(
-            reverse("configuracoes:secao", args=["perfil"]),
-            {"nome": "Novo Nome", "biografia": "Minha bio"},
-        )
-        self.assertRedirects(resposta, reverse("configuracoes:secao", args=["perfil"]))
-        perfil = Perfil.objects.get(usuario=self.caua)
-        self.caua.refresh_from_db()
-        self.assertEqual(self.caua.first_name, "Novo Nome")
-        self.assertEqual(perfil.biografia, "Minha bio")
+    def test_seguranca_aponta_para_fluxo_existente_de_senha(self):
+        resposta = self.client.get(reverse("configuracoes:secao", args=["seguranca"]))
+        self.assertContains(resposta, reverse("login:password_reset"))
+        self.assertContains(resposta, "Alterar senha")
+        self.assertNotContains(resposta, 'name="old_password"')
 
     def test_desativacao_exige_confirmacao_exata(self):
         url = reverse("configuracoes:secao", args=["conta"])
