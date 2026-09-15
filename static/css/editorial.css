@@ -43,12 +43,17 @@ body { background: var(--background); color: var(--text); }
 .home-feed-page .feed,
 .profile-page .profile-feed {
   width: 100%;
-  height: 100%;
+  height: calc(100% - 32px);
   min-height: 0;
+  margin: 16px 0;
   border: 1px solid var(--border);
   border-top: 3px solid var(--primary);
   background: var(--surface);
 }
+.home-feed-page .feed-scroll,
+.profile-page .profile-feed { scrollbar-width: none; }
+.home-feed-page .feed-scroll::-webkit-scrollbar,
+.profile-page .profile-feed::-webkit-scrollbar { display: none; }
 .feed-tabs .is-active::after,
 .profile-tab.is-active::after { height: 2px; }
 .create-post { padding: 28px 30px 24px; background: var(--surface); border-bottom: 1px solid var(--border); }
@@ -161,6 +166,8 @@ textarea::placeholder { color: var(--muted); }
 @media (max-width: 720px) {
   .home-feed-page .feed,
   .profile-page .profile-feed {
+    height: 100%;
+    margin: 0;
     border-right: 0;
     border-bottom: 0;
     border-left: 0;
