@@ -51,8 +51,13 @@
           {% else %}
             <div class="empty-state">
               <span class="empty-state-icon material-symbols-outlined" aria-hidden="true">group</span>
-              <h2>Nenhum usuário por aqui</h2>
-              <p>Quando houver relações neste perfil, elas aparecerão aqui.</p>
+              {% if tipo == "seguindo" %}
+                <h2>Ninguém sendo seguido</h2>
+                <p>@{{ dono_do_perfil.username }} ainda não segue ninguém.</p>
+              {% else %}
+                <h2>Nenhum seguidor ainda</h2>
+                <p>@{{ dono_do_perfil.username }} ainda não tem seguidores.</p>
+              {% endif %}
             </div>
           {% endif %}
         </section>

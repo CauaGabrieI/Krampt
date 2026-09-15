@@ -79,12 +79,18 @@
                   {% if original.autor.pk in seguindo_ids %}Deixar de seguir{% else %}Seguir{% endif %} @{{ original.autor.username }}
                 </button>
               </form>
-              <form method="post" action="{% url 'posts:silenciar_usuario' original.autor.pk %}" data-async-action data-action-type="hide-post">
+              <form method="post"
+                    action="{% if original.silenciado_pelo_usuario %}{% url 'posts:dessilenciar_usuario' original.autor.pk %}{% else %}{% url 'posts:silenciar_usuario' original.autor.pk %}{% endif %}"
+                    data-async-action
+                    data-action-type="mute-user"
+                    data-username="{{ original.autor.username }}"
+                    data-mute-url="{% url 'posts:silenciar_usuario' original.autor.pk %}"
+                    data-unmute-url="{% url 'posts:dessilenciar_usuario' original.autor.pk %}">
                 {% csrf_token %}
                 <input type="hidden" name="return_path" value="{{ request.get_full_path }}">
                 <button type="submit" role="menuitem">
-                  <span class="material-symbols-outlined" aria-hidden="true">volume_off</span>
-                  Silenciar @{{ original.autor.username }}
+                  <span class="material-symbols-outlined" aria-hidden="true">{% if original.silenciado_pelo_usuario %}volume_up{% else %}volume_off{% endif %}</span>
+                  {% if original.silenciado_pelo_usuario %}Dessilenciar{% else %}Silenciar{% endif %} @{{ original.autor.username }}
                 </button>
               </form>
               <form method="post" action="{% url 'posts:bloquear_usuario' original.autor.pk %}" data-async-action data-action-type="hide-post">

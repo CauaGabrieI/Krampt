@@ -57,6 +57,61 @@
         form.reset();
         form.querySelector('textarea')?.focus();
       }
+      if (tipo === 'mute-user') {
+        const username = form.dataset.username || '';
+        const csrf = form.querySelector('[name="csrfmiddlewaretoken"]')?.value;
+
+        const atualizarEstado = (muted) => {
+          form.action = muted ? form.dataset.unmuteUrl : form.dataset.muteUrl;
+          const botao = form.querySelector('button');
+          if (!botao) return;
+          const icone = document.createElement('span');
+          icone.className = 'material-symbols-outlined';
+          icone.setAttribute('aria-hidden', 'true');
+          icone.textContent = muted ? 'volume_up' : 'volume_off';
+          botao.replaceChildren(
+            icone,
+            document.createTextNode(` ${muted ? 'Dessilenciar' : 'Silenciar'} @${username}`)
+          );
+        };
+
+        const muted = dados.muted === true && dados.unmuted !== true;
+        atualizarEstado(muted);
+
+        const menu = form.closest('[data-post-menu]');
+        const painel = menu?.querySelector('.post-menu-panel');
+        const gatilho = menu?.querySelector('.post-menu-trigger');
+        if (painel) painel.hidden = true;
+        if (gatilho) gatilho.setAttribute('aria-expanded', 'false');
+
+        if (window.KramptToast) {
+          const undoUrl = dados.undo_url;
+          window.KramptToast(
+            dados.message || (muted ? `@${username} foi silenciado.` : `@${username} foi dessilenciado.`),
+            'success',
+            undoUrl ? {
+              label: dados.undo_label || 'Desfazer',
+              onClick: async () => {
+                const payload = new FormData();
+                if (csrf) payload.append('csrfmiddlewaretoken', csrf);
+                const undoResponse = await fetch(undoUrl, {
+                  method: 'POST',
+                  body: payload,
+                  credentials: 'same-origin',
+                  headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                if (!undoResponse.ok) throw new Error('Não foi possível desfazer.');
+                const undoData = await undoResponse.json();
+                atualizarEstado(false);
+                window.KramptToast(
+                  undoData.message || dados.undo_message || 'Ação desfeita.',
+                  'success'
+                );
+              }
+            } : null
+          );
+        }
+      }
       if (tipo === 'hide-post') {
         form.closest('dialog')?.close();
         form.closest('.post')?.remove();

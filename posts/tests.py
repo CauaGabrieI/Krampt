@@ -789,7 +789,7 @@ class MenuEAcoesSociaisDoPostTests(TestCase):
         self.assertTrue(PostSemInteresse.objects.filter(usuario=self.terceiro, post=self.post).exists())
         self.assertContains(self.client.get(reverse("home")), "Post para menu")
 
-    def test_silenciar_usuario_remove_posts_do_feed_sem_remover_follow(self):
+    def test_silenciar_usuario_mantem_posts_no_feed_e_preserva_follow(self):
         from profile.models import Perfil
 
         perfil = Perfil.objects.create(usuario=self.leitor)
@@ -800,7 +800,7 @@ class MenuEAcoesSociaisDoPostTests(TestCase):
 
         self.assertTrue(UsuarioSilenciado.objects.filter(usuario=self.leitor, silenciado=self.autor).exists())
         self.assertTrue(perfil.seguindo.filter(pk=self.autor.pk).exists())
-        self.assertNotContains(self.client.get(reverse("home")), "Post para menu")
+        self.assertContains(self.client.get(reverse("home")), "Post para menu")
         self.assertContains(
             self.client.get(reverse("profile:perfil_publico", args=[self.autor.username])),
             "Post para menu",
