@@ -1,6 +1,7 @@
 import json
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.sessions.backends.db import SessionStore
@@ -175,6 +176,42 @@ class ConfiguracoesTests(TestCase):
         self.assertTrue(Post.objects.filter(pk=post.pk).exists())
         self.assertNotIn("_auth_user_id", self.client.session)
 
+    def test_desativacao_preserva_dados_sociais(self):
+        perfil = Perfil.objects.create(usuario=self.caua, biografia="Continuo aqui")
+        perfil.seguindo.add(self.ana)
+        post = Post.objects.create(autor=self.caua, conteudo="Preservar publicação")
+        comentario = Comentario.objects.create(
+            post=post,
+            autor=self.ana,
+            conteudo="Preservar comentário",
+        )
+        conversa = Conversa.objects.create()
+        conversa.participantes.add(self.caua, self.ana)
+        mensagem = Mensagem.objects.create(
+            conversa=conversa,
+            autor=self.ana,
+            conteudo="Preservar mensagem",
+        )
+        notificacao = Notificacao.objects.create(
+            usuario=self.caua,
+            autor=self.ana,
+            tipo="comentario",
+            post=post,
+            comentario=comentario,
+        )
+
+        self.client.post(
+            reverse("configuracoes:secao", args=["conta"]),
+            {"acao": "desativar", "confirmacao": "caua", "senha": "Senha!Forte123"},
+        )
+
+        self.assertTrue(Perfil.objects.filter(pk=perfil.pk, seguindo=self.ana).exists())
+        self.assertTrue(Post.objects.filter(pk=post.pk).exists())
+        self.assertTrue(Comentario.objects.filter(pk=comentario.pk).exists())
+        self.assertTrue(Conversa.objects.filter(pk=conversa.pk).exists())
+        self.assertTrue(Mensagem.objects.filter(pk=mensagem.pk).exists())
+        self.assertTrue(Notificacao.objects.filter(pk=notificacao.pk).exists())
+
     def test_exclusao_de_conta_exige_username_e_senha(self):
         usuario = User.objects.create_user(
             username="excluir", email="excluir@example.com", password="Senha!Forte123"
@@ -204,6 +241,40 @@ class ConfiguracoesTests(TestCase):
 
         self.assertRedirects(resposta, reverse("cadastro"))
         self.assertFalse(Conversa.objects.filter(pk=conversa.pk).exists())
+
+    def test_exclusao_remove_dados_relacionados_e_notificacoes(self):
+        perfil = Perfil.objects.create(usuario=self.caua)
+        post = Post.objects.create(autor=self.caua, conteudo="Remover")
+        comentario = Comentario.objects.create(
+            post=post,
+            autor=self.ana,
+            conteudo="Também será removido com o post",
+        )
+        notificacao_recebida = Notificacao.objects.create(
+            usuario=self.caua,
+            autor=self.ana,
+            tipo="comentario",
+            post=post,
+            comentario=comentario,
+        )
+        notificacao_enviada = Notificacao.objects.create(
+            usuario=self.ana,
+            autor=self.caua,
+            tipo="repost",
+            post=post,
+        )
+
+        self.client.post(
+            reverse("configuracoes:secao", args=["conta"]),
+            {"acao": "excluir_conta", "confirmacao": "caua", "senha": "Senha!Forte123"},
+        )
+
+        self.assertFalse(User.objects.filter(pk=self.caua.pk).exists())
+        self.assertFalse(Perfil.objects.filter(pk=perfil.pk).exists())
+        self.assertFalse(Post.objects.filter(pk=post.pk).exists())
+        self.assertFalse(Comentario.objects.filter(pk=comentario.pk).exists())
+        self.assertFalse(Notificacao.objects.filter(pk=notificacao_recebida.pk).exists())
+        self.assertFalse(Notificacao.objects.filter(pk=notificacao_enviada.pk).exists())
 
     def test_desativacao_nao_remove_arquivos_e_exclusao_remove(self):
         with tempfile.TemporaryDirectory() as pasta:
@@ -260,6 +331,81 @@ class ConfiguracoesTests(TestCase):
 
                 for nome in nomes:
                     self.assertFalse((Path(pasta) / nome).exists())
+
+    def test_exclusao_usa_storage_do_campo_sem_servico_externo_real(self):
+        perfil = Perfil.objects.create(
+            usuario=self.caua,
+            foto="fotos_perfil/foto.webp",
+            banner="banners_perfil/banner.webp",
+        )
+        post = Post.objects.create(
+            autor=self.caua,
+            conteudo="Mídias",
+            imagem="imagens_posts/post.webp",
+            audio="audios_posts/post.mp3",
+        )
+        ImagemPost.objects.create(post=post, imagem="imagens_posts/extra.webp")
+        Comentario.objects.create(
+            post=post,
+            autor=self.ana,
+            conteudo="Comentário",
+            imagem="imagens_comentarios/comentario.webp",
+            audio="audios_comentarios/comentario.mp3",
+        )
+        storage = perfil.foto.storage
+
+        with patch.object(storage, "delete") as excluir:
+            self.client.post(
+                reverse("configuracoes:secao", args=["conta"]),
+                {"acao": "excluir_conta", "confirmacao": "caua", "senha": "Senha!Forte123"},
+            )
+
+        self.assertCountEqual(
+            [chamada.args[0] for chamada in excluir.call_args_list],
+            [
+                "fotos_perfil/foto.webp",
+                "banners_perfil/banner.webp",
+                "imagens_posts/post.webp",
+                "audios_posts/post.mp3",
+                "imagens_posts/extra.webp",
+                "imagens_comentarios/comentario.webp",
+                "audios_comentarios/comentario.mp3",
+            ],
+        )
+
+    def test_exclusao_nao_remove_arquivo_compartilhado(self):
+        Post.objects.create(
+            autor=self.caua,
+            conteudo="Original",
+            imagem="imagens_posts/compartilhada.webp",
+        )
+        outro = Post.objects.create(
+            autor=self.ana,
+            conteudo="Outra referência",
+            imagem="imagens_posts/compartilhada.webp",
+        )
+
+        with patch.object(outro.imagem.storage, "delete") as excluir:
+            self.client.post(
+                reverse("configuracoes:secao", args=["conta"]),
+                {"acao": "excluir_conta", "confirmacao": "caua", "senha": "Senha!Forte123"},
+            )
+
+        excluir.assert_not_called()
+
+    def test_falha_no_storage_nao_deixa_conta_fantasma_na_sessao(self):
+        perfil = Perfil.objects.create(usuario=self.caua, foto="fotos_perfil/foto.webp")
+
+        with self.assertLogs("configuracoes.services", level="ERROR"):
+            with patch.object(perfil.foto.storage, "delete", side_effect=OSError("storage fora")):
+                resposta = self.client.post(
+                    reverse("configuracoes:secao", args=["conta"]),
+                    {"acao": "excluir_conta", "confirmacao": "caua", "senha": "Senha!Forte123"},
+                )
+
+        self.assertRedirects(resposta, reverse("cadastro"))
+        self.assertFalse(User.objects.filter(pk=self.caua.pk).exists())
+        self.assertNotIn("_auth_user_id", self.client.session)
 
     def test_sair_das_outras_sessoes_preserva_atual(self):
         outra = SessionStore()

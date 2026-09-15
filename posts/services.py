@@ -1,4 +1,6 @@
 import re
+from contextlib import contextmanager
+from contextvars import ContextVar
 from io import BytesIO
 
 from django.db.models import Count, Exists, OuterRef, Prefetch
@@ -9,6 +11,26 @@ from django.utils.text import slugify
 from django.utils.safestring import mark_safe
 
 from .models import Comentario, Post
+
+
+_LIMPEZA_AUTOMATICA_DE_MIDIAS_SUSPENSA = ContextVar(
+    "limpeza_automatica_de_midias_suspensa",
+    default=False,
+)
+
+
+@contextmanager
+def suspender_limpeza_automatica_de_midias():
+    """Delega temporariamente a limpeza de mídia a um serviço de nível superior."""
+    token = _LIMPEZA_AUTOMATICA_DE_MIDIAS_SUSPENSA.set(True)
+    try:
+        yield
+    finally:
+        _LIMPEZA_AUTOMATICA_DE_MIDIAS_SUSPENSA.reset(token)
+
+
+def limpeza_automatica_de_midias_suspensa():
+    return _LIMPEZA_AUTOMATICA_DE_MIDIAS_SUSPENSA.get()
 
 LINK_OU_HASHTAG_RE = re.compile(
     r"https?://[^\s<>]+|www\.[^\s<>]+|(?<![\w#])#[\w]+",

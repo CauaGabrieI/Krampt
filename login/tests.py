@@ -245,6 +245,34 @@ class ReativacaoContaTests(TestCase):
         self.assertContains(resposta, "Um link já foi solicitado recentemente.")
         self.assertEqual(len(mail.outbox), 1)
 
+    def test_limite_por_janela_permite_somente_tres_envios(self):
+        for _ in range(3):
+            resposta = self.client.post(reverse("reativar_conta"))
+            self.assertEqual(resposta.status_code, 200)
+            self.preferencias.refresh_from_db()
+            self.preferencias.reativacao_ultimo_envio_em = timezone.now() - timedelta(minutes=6)
+            self.preferencias.save(update_fields=["reativacao_ultimo_envio_em"])
+
+        resposta = self.client.post(reverse("reativar_conta"))
+
+        self.assertEqual(resposta.status_code, 429)
+        self.assertContains(
+            resposta,
+            "Um link já foi solicitado recentemente.",
+            status_code=429,
+        )
+        self.assertEqual(len(mail.outbox), 3)
+
+    def test_conta_ativa_nao_acessa_fluxo_de_reativacao(self):
+        self.usuario.is_active = True
+        self.usuario.save(update_fields=["is_active"])
+
+        resposta = self.client.get(reverse("reativar_conta"))
+
+        self.assertRedirects(resposta, reverse("login:login"))
+        self.assertNotIn("reativacao_usuario_id", self.client.session)
+        self.assertEqual(len(mail.outbox), 0)
+
     def test_token_valido_reativa_e_invalida_o_link(self):
         self.client.post(reverse("reativar_conta"))
         token = self._token_email()

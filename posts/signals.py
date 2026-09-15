@@ -7,7 +7,7 @@ from django.dispatch import receiver
 from django.utils.text import slugify
 
 from .models import Comentario, Hashtag, ImagemPost, Post
-from .services import hashtags_do_texto
+from .services import hashtags_do_texto, limpeza_automatica_de_midias_suspensa
 
 
 logger = logging.getLogger(__name__)
@@ -26,6 +26,8 @@ def _coletar_arquivos(instance, campos):
 
 
 def _agendar_exclusao_de_arquivos(instance, **kwargs):
+    if limpeza_automatica_de_midias_suspensa():
+        return
     caminhos = getattr(instance, _CAMINHOS, ())
     if not caminhos:
         return

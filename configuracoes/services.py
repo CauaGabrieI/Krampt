@@ -10,10 +10,12 @@ from django.db import transaction
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.debug import sensitive_variables
 
 from login.services import _resumo
 from mensagens.models import Conversa
 from posts.models import Comentario, ImagemPost, Post
+from posts.services import suspender_limpeza_automatica_de_midias
 from profile.models import Perfil
 
 from .models import PreferenciasUsuario
@@ -42,19 +44,24 @@ def conta_desativada_voluntariamente(usuario):
 
 
 def desativar_conta(usuario):
-    preferencias = obter_preferencias(usuario)
-    preferencias.desativada_em = timezone.now()
-    preferencias.token_reativacao_hash = ""
-    preferencias.token_reativacao_expira_em = None
-    preferencias.save(
-        update_fields=[
-            "desativada_em",
-            "token_reativacao_hash",
-            "token_reativacao_expira_em",
-        ]
-    )
+    with transaction.atomic():
+        usuario_bloqueado = User.objects.select_for_update().get(pk=usuario.pk)
+        preferencias, _ = PreferenciasUsuario.objects.select_for_update().get_or_create(
+            usuario=usuario_bloqueado
+        )
+        preferencias.desativada_em = timezone.now()
+        preferencias.token_reativacao_hash = ""
+        preferencias.token_reativacao_expira_em = None
+        preferencias.save(
+            update_fields=[
+                "desativada_em",
+                "token_reativacao_hash",
+                "token_reativacao_expira_em",
+            ]
+        )
+        usuario_bloqueado.is_active = False
+        usuario_bloqueado.save(update_fields=["is_active"])
     usuario.is_active = False
-    usuario.save(update_fields=["is_active"])
 
 
 def _hash_token(usuario_id, token):
@@ -83,49 +90,57 @@ def _enviar_email_reativacao(usuario, request, token):
         raise OSError("O serviço de e-mail não confirmou o envio.")
 
 
+@sensitive_variables("token", "token_hash")
 def solicitar_reativacao(usuario, request):
     agora = timezone.now()
-    preferencias = obter_preferencias(usuario)
-    if not preferencias.desativada_em or usuario.is_active:
-        return "invalido"
-    if (
-        preferencias.reativacao_ultimo_envio_em
-        and agora - preferencias.reativacao_ultimo_envio_em < INTERVALO_REATIVACAO
-    ):
-        return "aguarde"
-    if (
-        not preferencias.reativacao_janela_envio_em
-        or agora - preferencias.reativacao_janela_envio_em >= JANELA_REATIVACAO
-    ):
-        preferencias.reativacao_janela_envio_em = agora
-        preferencias.reativacao_envios_na_janela = 0
-    if (
-        preferencias.reativacao_ultimo_envio_em
-        and preferencias.reativacao_envios_na_janela >= LIMITE_REATIVACAO
-    ):
-        return "limite"
+    with transaction.atomic():
+        preferencias = (
+            PreferenciasUsuario.objects.select_for_update()
+            .select_related("usuario")
+            .filter(usuario=usuario)
+            .first()
+        )
+        if (
+            preferencias is None
+            or not preferencias.desativada_em
+            or preferencias.usuario.is_active
+        ):
+            return "invalido"
+        if (
+            preferencias.reativacao_ultimo_envio_em
+            and agora - preferencias.reativacao_ultimo_envio_em < INTERVALO_REATIVACAO
+        ):
+            return "aguarde"
+        if (
+            not preferencias.reativacao_janela_envio_em
+            or agora - preferencias.reativacao_janela_envio_em >= JANELA_REATIVACAO
+        ):
+            preferencias.reativacao_janela_envio_em = agora
+            preferencias.reativacao_envios_na_janela = 0
+        if preferencias.reativacao_envios_na_janela >= LIMITE_REATIVACAO:
+            return "limite"
 
-    token = secrets.token_urlsafe(32)
-    token_hash = _hash_token(usuario.pk, token)
-    _enviar_email_reativacao(usuario, request, token)
+        token = secrets.token_urlsafe(32)
+        token_hash = _hash_token(usuario.pk, token)
+        _enviar_email_reativacao(usuario, request, token)
 
-    ja_enviado = bool(preferencias.reativacao_ultimo_envio_em)
-    preferencias.token_reativacao_hash = token_hash
-    preferencias.token_reativacao_expira_em = agora + TEMPO_TOKEN_REATIVACAO
-    preferencias.reativacao_ultimo_envio_em = agora
-    preferencias.reativacao_envios_na_janela += 1 if ja_enviado else 0
-    preferencias.save(
-        update_fields=[
-            "token_reativacao_hash",
-            "token_reativacao_expira_em",
-            "reativacao_ultimo_envio_em",
-            "reativacao_janela_envio_em",
-            "reativacao_envios_na_janela",
-        ]
-    )
+        preferencias.token_reativacao_hash = token_hash
+        preferencias.token_reativacao_expira_em = agora + TEMPO_TOKEN_REATIVACAO
+        preferencias.reativacao_ultimo_envio_em = agora
+        preferencias.reativacao_envios_na_janela += 1
+        preferencias.save(
+            update_fields=[
+                "token_reativacao_hash",
+                "token_reativacao_expira_em",
+                "reativacao_ultimo_envio_em",
+                "reativacao_janela_envio_em",
+                "reativacao_envios_na_janela",
+            ]
+        )
     return "enviado"
 
 
+@sensitive_variables("token", "esperado")
 def reativar_por_token(token):
     agora = timezone.now()
     preferencias_qs = PreferenciasUsuario.objects.select_related("usuario").filter(
@@ -209,22 +224,28 @@ def _arquivo_tem_outro_dono(field_file, usuario_pk):
 
 def excluir_conta_com_limpeza(usuario):
     usuario_pk = usuario.pk
-    arquivos = [
-        (arquivo, _arquivo_tem_outro_dono(arquivo, usuario_pk))
-        for arquivo in arquivos_da_conta(usuario)
-    ]
+    arquivos = {}
+    for arquivo in arquivos_da_conta(usuario):
+        chave = (id(arquivo.storage), arquivo.name)
+        arquivos[chave] = (arquivo, _arquivo_tem_outro_dono(arquivo, usuario_pk))
     try:
-        with transaction.atomic():
-            Conversa.objects.filter(participantes=usuario).delete()
-            usuario.delete()
+        with suspender_limpeza_automatica_de_midias():
+            with transaction.atomic():
+                Conversa.objects.filter(participantes=usuario).delete()
+                usuario.delete()
     except Exception:
-        logger.exception("Falha ao excluir conta do usuário %s.", usuario.pk)
+        logger.exception("Falha ao excluir conta do usuário %s.", usuario_pk)
         raise
 
-    for arquivo, compartilhado in arquivos:
+    falhas = []
+    for arquivo, compartilhado in arquivos.values():
         try:
             if not compartilhado:
                 arquivo.storage.delete(arquivo.name)
         except Exception:
-            logger.exception("Falha ao remover arquivo de conta excluída.")
-            raise
+            falhas.append(arquivo.name)
+            logger.exception(
+                "Conta %s excluída, mas um arquivo de mídia não pôde ser removido.",
+                usuario_pk,
+            )
+    return tuple(falhas)

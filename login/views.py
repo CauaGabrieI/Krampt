@@ -9,7 +9,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.utils.http import url_has_allowed_host_and_scheme
-from django.views.decorators.debug import sensitive_post_parameters
+from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 from django.views.decorators.http import require_http_methods
 
 from .forms import (
@@ -238,6 +238,7 @@ def reativar_conta_view(request):
 
 
 @login_not_required
+@sensitive_variables("token")
 @require_http_methods(["GET"])
 def reativar_conta_token_view(request, token):
     if request.user.is_authenticated:
