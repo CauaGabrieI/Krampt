@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% load static %}
 {% block title %}Mensagens | Krampt{% endblock %}
+{% block body_class %}dm-inbox-page{% endblock %}
 {% block extra_head %}
-  <link rel="stylesheet" href="{% static 'css/mensagens.css' %}?v=shared-feed-width-1">
+  <link rel="stylesheet" href="{% static 'css/mensagens.css' %}?v=inbox-redesign-1">
 {% endblock %}
 {% block content %}
   {% include "includes/site_header.html" with active_page="mensagens" %}
@@ -10,37 +11,52 @@
   <div class="app-shell">
     {% include "includes/explore_rail.html" %}
 
-    <main class="feed dm-feed" id="mensagens">
-      <div class="dm-heading">
+    <main class="feed dm-feed dm-inbox" id="mensagens">
+      <div class="dm-heading dm-inbox-heading">
         <div class="dm-heading-copy">
-          <h1>Mensagens</h1>
+          <div class="dm-title-row">
+            <h1>Mensagens</h1>
+            <span class="dm-active-badge">{{ total_conversas }} {% if total_conversas == 1 %}ativa{% else %}ativas{% endif %}</span>
+          </div>
           <p>Suas conversas privadas no Krampt</p>
         </div>
-        <a class="dm-new-button" href="{% url 'mensagens:nova' %}">Nova conversa</a>
+        <a class="dm-new-button" href="{% url 'mensagens:nova' %}">
+          <span aria-hidden="true">+</span>
+          Nova conversa
+        </a>
       </div>
 
       <div class="dm-list-tools">
-        <label class="dm-search" for="dm-search-input">
-          <span class="material-symbols-outlined" aria-hidden="true">search</span>
-          <input id="dm-search-input" type="search" placeholder="Buscar conversas" autocomplete="off">
-        </label>
+        <form class="dm-search-form" method="get" action="{% url 'mensagens:lista' %}" role="search">
+          {% if filtro != 'todas' %}<input type="hidden" name="filtro" value="{{ filtro }}">{% endif %}
+          <label class="dm-search" for="dm-search-input">
+            <span class="material-symbols-outlined" aria-hidden="true">search</span>
+            <input id="dm-search-input" name="q" type="search" value="{{ termo_busca }}" placeholder="Buscar conversas, contatos ou mensagens..." autocomplete="off">
+            <kbd>⌘K</kbd>
+          </label>
+        </form>
         <div class="dm-filter-row" aria-label="Filtros de mensagens">
-          <a class="dm-filter{% if filtro == 'todas' %} is-active{% endif %}" href="{% url 'mensagens:lista' %}"{% if filtro == 'todas' %} aria-current="page"{% endif %}>Tudo</a>
-          <a class="dm-filter{% if filtro == 'nao_lidas' %} is-active{% endif %}" href="{% url 'mensagens:lista' %}?filtro=nao_lidas"{% if filtro == 'nao_lidas' %} aria-current="page"{% endif %}>Não lidas</a>
+          <a class="dm-filter{% if filtro == 'todas' %} is-active{% endif %}" href="{% url 'mensagens:lista' %}{% if termo_busca %}?q={{ termo_busca|urlencode }}{% endif %}"{% if filtro == 'todas' %} aria-current="page"{% endif %}>Tudo</a>
+          <a class="dm-filter{% if filtro == 'nao_lidas' %} is-active{% endif %}" href="{% url 'mensagens:lista' %}?filtro=nao_lidas{% if termo_busca %}&q={{ termo_busca|urlencode }}{% endif %}"{% if filtro == 'nao_lidas' %} aria-current="page"{% endif %}>Não lidas <span>{{ total_nao_lidas }}</span></a>
+          <a class="dm-filter{% if filtro == 'solicitacoes' %} is-active{% endif %}" href="{% url 'mensagens:lista' %}?filtro=solicitacoes{% if termo_busca %}&q={{ termo_busca|urlencode }}{% endif %}"{% if filtro == 'solicitacoes' %} aria-current="page"{% endif %}>Solicitações <span>{{ total_solicitacoes }}</span></a>
         </div>
       </div>
 
+      <div class="dm-list-panel">
       {% if conversas %}
         <ul class="dm-list">
           {% for item in conversas %}
             <li>
-              <a class="dm-item" href="{% url 'mensagens:detalhe' item.conversa.pk %}" data-conversation-name="{{ item.outra_pessoa.first_name|default:item.outra_pessoa.username }} @{{ item.outra_pessoa.username }}">
+              <a class="dm-item{% if item.nao_lidas %} has-unread{% endif %}" href="{% url 'mensagens:detalhe' item.conversa.pk %}" data-conversation-name="{{ item.outra_pessoa.first_name|default:item.outra_pessoa.username }} @{{ item.outra_pessoa.username }} {% if item.ultima %}{{ item.ultima.conteudo }}{% endif %}">
                 {% include "includes/avatar.html" with usuario=item.outra_pessoa %}
                 <div class="dm-item-main">
                   <div class="dm-item-top">
-                    <strong>{{ item.outra_pessoa.first_name|default:item.outra_pessoa.username }}</strong>
+                    <div class="dm-person-title">
+                      <strong>{{ item.outra_pessoa.first_name|default:item.outra_pessoa.username }}</strong>
+                      <span>@{{ item.outra_pessoa.username }}</span>
+                    </div>
                     {% if item.ultima %}
-                      <time datetime="{{ item.ultima.criada_em|date:'c' }}">{{ item.ultima.criada_em|date:"H:i" }}</time>
+                      <time datetime="{{ item.ultima.criada_em|date:'c' }}">{{ item.ultima.criada_em|date:"d/m H:i" }}</time>
                     {% endif %}
                   </div>
                   <div class="dm-item-bottom">
@@ -61,19 +77,35 @@
           {% endfor %}
         </ul>
       {% else %}
-        <div class="empty-state">
-          <span class="empty-state-icon material-symbols-outlined" aria-hidden="true">forum</span>
+        <div class="empty-state dm-empty">
+          <span class="material-symbols-outlined" aria-hidden="true">search</span>
           {% if filtro == 'nao_lidas' %}
             <h2>Tudo em dia</h2>
             <p>Você não tem mensagens não lidas.</p>
             <a class="dm-new-button" href="{% url 'mensagens:lista' %}">Ver todas</a>
+          {% elif filtro == 'solicitacoes' %}
+            <h2>Nenhuma solicitação</h2>
+            <p>Quando houver solicitações de conversa, elas aparecerão aqui.</p>
+            <a class="dm-new-button" href="{% url 'mensagens:lista' %}">Ver tudo</a>
+          {% elif termo_busca %}
+            <h2>Nenhum resultado</h2>
+            <p>Não encontramos conversas para "{{ termo_busca }}".</p>
+            <a class="dm-new-button" href="{% url 'mensagens:lista' %}">Limpar busca</a>
           {% else %}
             <h2>Nenhuma conversa ainda</h2>
-            <p>Comece uma conversa privada com quem você segue.</p>
-            <a class="dm-new-button" href="{% url 'mensagens:nova' %}">Nova conversa</a>
+            <p>Comece uma conversa privada com quem você segue ou descubra novos criadores e contatos na rede Krampt.</p>
+            <div class="dm-empty-actions">
+              <a class="dm-new-button" href="{% url 'mensagens:nova' %}">Nova conversa</a>
+              <a class="dm-secondary-button" href="{% url 'buscar' %}">Explorar conexões</a>
+            </div>
+            <div class="dm-quick-tip">
+              <strong>DICA RÁPIDA</strong>
+              <p>Pressione N a qualquer momento para abrir o compositor rápido de mensagens.</p>
+            </div>
           {% endif %}
         </div>
       {% endif %}
+      </div>
       <div class="dm-shield">
         <span class="material-symbols-outlined" aria-hidden="true">lock</span>
         <span>As conversas são privadas entre os participantes.</span>

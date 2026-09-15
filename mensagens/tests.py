@@ -21,6 +21,23 @@ class CriarConversaTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
 
+    def test_lista_de_conversas_exige_login(self):
+        response = self.client.get(reverse("mensagens:lista"))
+
+        self.assertEqual(response.status_code, 302)
+
+    def test_lista_mostra_estado_vazio(self):
+        self.client.force_login(self.caua)
+
+        response = self.client.get(reverse("mensagens:lista"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Nenhuma conversa ainda")
+        self.assertContains(response, "Comece uma conversa privada com quem você segue")
+        self.assertContains(response, reverse("mensagens:nova"))
+        self.assertContains(response, reverse("buscar"))
+        self.assertEqual(response.context["total_conversas"], 0)
+
     def test_criar_conversa_redireciona_para_a_conversa_criada(self):
         self.client.force_login(self.caua)
 
@@ -216,6 +233,20 @@ class ConversaTests(TestCase):
         self.assertEqual(response.context["conversas"][0]["conversa"], self.conversa)
         self.assertEqual(response.context["conversas"][1]["conversa"], outra)
 
+    def test_lista_mostra_conversa_com_link_e_contador_de_nao_lidas(self):
+        Mensagem.objects.create(conversa=self.conversa, autor=self.maria, conteudo="Nova mensagem")
+        self.client.force_login(self.caua)
+
+        response = self.client.get(reverse("mensagens:lista"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("mensagens:detalhe", args=[self.conversa.pk]))
+        self.assertContains(response, "@maria")
+        self.assertContains(response, "Nova mensagem")
+        self.assertContains(response, 'aria-label="1 não lidas"')
+        self.assertEqual(response.context["total_conversas"], 1)
+        self.assertEqual(response.context["total_nao_lidas"], 1)
+
     def test_filtro_mostra_apenas_conversas_com_nao_lidas(self):
         outra = Conversa.objects.create()
         outra.participantes.add(self.caua, self.ricardo)
@@ -229,6 +260,30 @@ class ConversaTests(TestCase):
         self.assertEqual(len(response.context["conversas"]), 1)
         self.assertEqual(response.context["conversas"][0]["conversa"], self.conversa)
         self.assertContains(response, "Não lida")
+
+    def test_busca_filtra_por_usuario_e_mensagem(self):
+        outra = Conversa.objects.create()
+        outra.participantes.add(self.caua, self.ricardo)
+        Mensagem.objects.create(conversa=outra, autor=self.ricardo, conteudo="Projeto secreto")
+        self.client.force_login(self.caua)
+
+        por_usuario = self.client.get(reverse("mensagens:lista"), {"q": "maria"})
+        por_mensagem = self.client.get(reverse("mensagens:lista"), {"q": "secreto"})
+
+        self.assertEqual(len(por_usuario.context["conversas"]), 1)
+        self.assertEqual(por_usuario.context["conversas"][0]["conversa"], self.conversa)
+        self.assertEqual(len(por_mensagem.context["conversas"]), 1)
+        self.assertEqual(por_mensagem.context["conversas"][0]["conversa"], outra)
+
+    def test_filtro_solicitacoes_nao_inventa_conversas(self):
+        self.client.force_login(self.caua)
+
+        response = self.client.get(reverse("mensagens:lista"), {"filtro": "solicitacoes"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["filtro"], "solicitacoes")
+        self.assertEqual(response.context["conversas"], [])
+        self.assertContains(response, "Nenhuma solicitação")
 
 
 class PaginacaoMensagensTests(TestCase):

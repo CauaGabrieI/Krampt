@@ -88,18 +88,28 @@
 }
 .profile-action:hover { border-color: var(--text); background: var(--surface-raised); }
 .profile-summary-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.profile-summary-actions form {
+  display: flex;
+  margin: 0;
+}
+.profile-summary-actions .profile-action,
 .profile-summary-actions .follow-button,
-.profile-message-button { min-height: 36px; border-radius: 8px; }
 .profile-message-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-height: 36px;
+  margin-bottom: 9px;
+  padding: 7px 18px;
+  border-radius: 0;
+  font-size: 13px;
+  line-height: 1;
+}
+.profile-message-button {
   gap: 7px;
-  padding: 7px 14px;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
-  font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
   cursor: pointer;

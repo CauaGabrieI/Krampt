@@ -21,7 +21,9 @@ def lista_de_conversas(request):
     ultima_mensagem = Mensagem.objects.filter(conversa_id=OuterRef("pk")).order_by(
         "-criada_em", "-pk"
     )
-    filtro = "nao_lidas" if request.GET.get("filtro") == "nao_lidas" else "todas"
+    filtro_recebido = request.GET.get("filtro")
+    filtro = filtro_recebido if filtro_recebido in {"nao_lidas", "solicitacoes"} else "todas"
+    termo_busca = request.GET.get("q", "").strip()
     conversas = (
         Conversa.objects.filter(participantes=request.user)
         .annotate(
@@ -38,8 +40,19 @@ def lista_de_conversas(request):
         .prefetch_related(Prefetch("participantes", queryset=User.objects.select_related("perfil")))
         .order_by("-ultima_atividade", "-pk")
     )
+    total_conversas = conversas.count()
+    total_nao_lidas = conversas.filter(total_nao_lidas__gt=0).count()
     if filtro == "nao_lidas":
         conversas = conversas.filter(total_nao_lidas__gt=0)
+    elif filtro == "solicitacoes":
+        conversas = conversas.none()
+    if termo_busca:
+        conversas = conversas.filter(
+            Q(participantes__username__icontains=termo_busca)
+            | Q(participantes__first_name__icontains=termo_busca)
+            | Q(participantes__last_name__icontains=termo_busca)
+            | Q(mensagens__conteudo__icontains=termo_busca)
+        ).distinct()
     conversas = list(conversas)
     ultimas = {
         mensagem.pk: mensagem
@@ -64,7 +77,16 @@ def lista_de_conversas(request):
             }
         )
     return render(
-        request, "mensagens.html", {"conversas": itens, "filtro": filtro}
+        request,
+        "mensagens.html",
+        {
+            "conversas": itens,
+            "filtro": filtro,
+            "termo_busca": termo_busca,
+            "total_conversas": total_conversas,
+            "total_nao_lidas": total_nao_lidas,
+            "total_solicitacoes": 0,
+        },
     )
 
 
