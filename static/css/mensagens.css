@@ -1,20 +1,42 @@
 .dm-feed { min-height: calc(var(--viewport-height) - 64px); background: var(--surface); }
-.dm-inbox-page { background: #0d0d0f; }
+.dm-inbox-page {
+  --background: #0d0d0f;
+  --surface: #16161a;
+  --surface-raised: #1d1d23;
+  --border: #2d2d34;
+  --text: #f4f4f5;
+  --muted: #a1a1aa;
+  --subtle: #71717a;
+  display: flex;
+  flex-direction: column;
+  height: var(--viewport-height);
+  overflow: hidden;
+  background: var(--background);
+  color-scheme: dark;
+}
 .dm-inbox-page .app-shell {
+  grid-template-columns: minmax(0, 940px);
   justify-content: center;
-  padding-inline: 24px;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  padding: 16px 24px;
 }
 .dm-inbox-page .left-rail,
 .dm-inbox-page .right-rail {
   display: none;
 }
 .dm-inbox {
-  width: min(940px, 100%);
-  min-height: calc(var(--viewport-height) - 96px);
-  margin: 16px auto;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-top: 3px solid var(--primary);
-  background: #16161a;
+  background: var(--surface);
 }
 .dm-conversation-page { display: flex; flex-direction: column; height: var(--viewport-height); overflow: hidden; }
 .dm-conversation-page .site-header { flex-shrink: 0; }
@@ -27,9 +49,10 @@
 .dm-conversation-page .dm-thread > li { flex-shrink: 0; }
 .dm-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 76px; padding: 14px 20px; border-bottom: 1px solid var(--border); }
 .dm-inbox-heading {
+  flex: 0 0 auto;
   min-height: 116px;
   padding: 28px 32px 24px;
-  background: #16161a;
+  background: var(--surface);
 }
 .dm-heading-copy { min-width: 0; }
 .dm-heading h1 { margin: 0; font-size: 20px; letter-spacing: -.03em; }
@@ -62,7 +85,7 @@
 .dm-new-button:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
 .dm-back:hover { background: var(--surface-raised); border-color: var(--subtle); }
 .dm-list-tools { padding: 14px 16px 9px; border-bottom: 1px solid var(--border); }
-.dm-inbox .dm-list-tools { padding: 22px 32px 18px; background: #16161a; }
+.dm-inbox .dm-list-tools { flex: 0 0 auto; padding: 22px 32px 18px; background: var(--surface); }
 .dm-search-form { margin: 0; }
 .dm-search { position: relative; }
 .dm-search .material-symbols-outlined { position: absolute; top: 50%; left: 13px; transform: translateY(-50%); color: var(--subtle); font-size: 19px; pointer-events: none; }
@@ -108,7 +131,9 @@
 .dm-filter.is-active { background: var(--surface-raised); color: var(--text); border-color: #494454; }
 .dm-inbox .dm-filter.is-active { border-color: var(--primary); background: var(--primary); color: #fff; }
 .dm-filter span { color: inherit; opacity: .75; font-size: 11px; }
-.dm-list-panel { background: #16161a; }
+.dm-list-panel { background: var(--surface); }
+.dm-inbox .dm-list-panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: none; }
+.dm-inbox .dm-list-panel::-webkit-scrollbar { display: none; }
 .dm-list { display: grid; gap: 3px; padding: 8px; margin: 0; list-style: none; }
 .dm-inbox .dm-list { gap: 0; padding: 0; }
 .dm-item { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid transparent; border-radius: 0; color: inherit; transition: background .15s, border-color .15s; }
@@ -191,6 +216,7 @@
 }
 .dm-shield { display: flex; align-items: center; gap: 10px; margin: 13px 16px 20px; padding: 12px; border: 1px solid var(--border); border-radius: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
 .dm-inbox .dm-shield {
+  flex: 0 0 auto;
   margin: 0;
   padding: 16px 32px;
   border-width: 1px 0 0;
@@ -227,8 +253,8 @@
 .dm-person-button { width: 100%; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 .dm-person-button:hover { background: var(--surface-raised); }
 @media (max-width: 720px) {
-  .dm-inbox-page .app-shell { padding-inline: 0; }
-  .dm-inbox { min-height: calc(var(--viewport-height) - 64px); margin: 0; border-right: 0; border-left: 0; }
+  .dm-inbox-page .app-shell { padding: 0; }
+  .dm-inbox { border-right: 0; border-bottom: 0; border-left: 0; }
   .dm-heading { padding-right: 16px; padding-left: 16px; }
   .dm-inbox-heading { align-items: flex-start; flex-direction: column; min-height: 0; padding: 22px 18px 18px; }
   .dm-inbox-heading h1 { font-size: 28px; }
