@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=user-preferences-3">
+  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=global-toasts-4">
   <link rel="stylesheet" href="{% static 'css/krampt.css' %}?v=profile-links-3">
   {% block extra_head %}{% endblock %}
   <link rel="stylesheet" href="{% static 'css/editorial.css' %}?v=split-feed-rails-8">
@@ -19,8 +19,24 @@
       data-font-size="{{ preferencias_interface.tamanho_fonte|default:'padrao' }}"
       data-density="{{ preferencias_interface.densidade|default:'confortavel' }}">
   {% block content %}{% endblock %}
+  {% if messages %}
+    <div class="toast-region" aria-label="Avisos" aria-live="polite">
+      {% for message in messages %}
+        <div class="global-toast global-toast--{{ message.tags|default:'info' }}" role="{% if message.tags == 'error' %}alert{% else %}status{% endif %}" data-toast>
+          <span class="material-symbols-outlined global-toast-icon" aria-hidden="true">
+            {% if message.tags == 'success' %}check_circle{% elif message.tags == 'error' %}error{% elif message.tags == 'warning' %}warning{% else %}info{% endif %}
+          </span>
+          <span class="global-toast-text">{{ message }}</span>
+          <button class="global-toast-close" type="button" aria-label="Fechar aviso" data-toast-close>
+            <span class="material-symbols-outlined" aria-hidden="true">close</span>
+          </button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
   {% block scripts %}{% endblock %}
   <script src="{% static 'js/krampt.js' %}?v=2" defer></script>
   <script src="{% static 'js/post_carousel.js' %}?v=2" defer></script>
+  <script src="{% static 'js/toasts.js' %}?v=1" defer></script>
 </body>
 </html>

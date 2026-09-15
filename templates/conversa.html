@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}Conversa com {{ outra_pessoa.first_name|default:outra_pessoa.username }} | Krampt{% endblock %}
 {% block extra_head %}
-  <link rel="stylesheet" href="{% static 'css/mensagens.css' %}?v=conversation-scroll-1">
+  <link rel="stylesheet" href="{% static 'css/mensagens.css' %}?v=message-privacy-2">
 {% endblock %}
 {% block body_class %}dm-conversation-page{% endblock %}
 {% block content %}
@@ -55,14 +55,21 @@
       </ul>
       {% include "includes/paginacao.html" %}
 
-      <form class="dm-composer" method="post" action="{% url 'mensagens:detalhe' conversa.pk %}" aria-label="Enviar mensagem">
-        {% csrf_token %}
-        {{ formulario.conteudo }}
-        <button class="primary-button dm-send" type="submit" aria-label="Enviar mensagem">
-          <span class="material-symbols-outlined" aria-hidden="true">send</span>
-        </button>
-      </form>
-      {% for erro in formulario.conteudo.errors %}<p class="dm-compose-error" role="alert">{{ erro }}</p>{% endfor %}
+      {% if envio_permitido %}
+        <form class="dm-composer" method="post" action="{% url 'mensagens:detalhe' conversa.pk %}" aria-label="Enviar mensagem">
+          {% csrf_token %}
+          {{ formulario.conteudo }}
+          <button class="primary-button dm-send" type="submit" aria-label="Enviar mensagem">
+            <span class="material-symbols-outlined" aria-hidden="true">send</span>
+          </button>
+        </form>
+        {% for erro in formulario.conteudo.errors %}<p class="dm-compose-error" role="alert">{{ erro }}</p>{% endfor %}
+      {% else %}
+        <p class="dm-message-blocked">
+          <span class="material-symbols-outlined" aria-hidden="true">lock</span>
+          Este usuário não está aceitando mensagens no momento.
+        </p>
+      {% endif %}
     </main>
   </div>
 {% endblock %}

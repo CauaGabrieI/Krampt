@@ -59,10 +59,7 @@
 .settings-coming { display: flex; flex-direction: column; gap: 5px; border-style: dashed; }
 .settings-coming strong { font-size: 13px; }
 .settings-coming span { color: var(--muted); font-size: 12px; line-height: 1.5; }
-.settings-feedback { margin: 0 0 18px; padding: 11px 13px; border: 1px solid var(--border); font-size: 12px; }
-.settings-feedback--success { border-color: #396c53; color: #a5e5bd; }
-.settings-feedback--error, .settings-error { color: #ff9ca9; }
-.settings-error { margin: -10px 0 0; font-size: 11px; }
+.settings-error { margin: -10px 0 0; color: #ff9ca9; font-size: 11px; }
 .settings-session-list { display: grid; gap: 0; margin: 17px 0 0; padding: 0; list-style: none; }
 .settings-session-list li { display: flex; justify-content: space-between; gap: 16px; padding: 11px 0; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
 .settings-session-list strong { color: var(--primary-light); }

@@ -12,6 +12,7 @@ from krampt.paginacao import parametros_sem_pagina, paginar, MENSAGENS_POR_PAGIN
 
 from .forms import EnviarMensagemForm
 from .models import Conversa, Mensagem
+from .services import AVISO_MENSAGEM_BLOQUEADA, pode_enviar_mensagem
 
 User = get_user_model()
 
@@ -97,8 +98,15 @@ def conversa_view(request, conversa_id):
     conversa = get_object_or_404(
         Conversa.objects.filter(participantes=request.user), pk=conversa_id
     )
+    outra_pessoa = conversa.participantes.exclude(pk=request.user.pk).select_related("perfil").first()
+    envio_permitido = bool(
+        outra_pessoa and pode_enviar_mensagem(request.user, outra_pessoa)
+    )
 
     if request.method == "POST":
+        if not envio_permitido:
+            messages.error(request, AVISO_MENSAGEM_BLOQUEADA)
+            return redirect("mensagens:detalhe", conversa_id=conversa.pk)
         formulario = EnviarMensagemForm(request.POST)
         if formulario.is_valid():
             Mensagem.objects.create(
@@ -125,7 +133,8 @@ def conversa_view(request, conversa_id):
         "conversa.html",
         {
             "conversa": conversa,
-            "outra_pessoa": conversa.participantes.exclude(pk=request.user.pk).select_related("perfil").first(),
+            "outra_pessoa": outra_pessoa,
+            "envio_permitido": envio_permitido,
             "formulario": formulario,
             "mensagens": pagina.object_list,
             "pagina_objeto": pagina,
@@ -169,14 +178,8 @@ def criar_conversa(request):
     if existente is not None:
         return redirect("mensagens:detalhe", conversa_id=existente.pk)
 
-    preferencias = getattr(outra, "preferencias", None)
-    permitido = preferencias is None or preferencias.permitir_novas_conversas
-    if permitido and preferencias and preferencias.mensagens_de == "ninguem":
-        permitido = False
-    if permitido and preferencias and preferencias.mensagens_de == "seguindo":
-        permitido = Perfil.objects.filter(usuario=outra, seguindo=request.user).exists()
-    if not permitido:
-        messages.error(request, "Essa pessoa não está aceitando novas conversas.")
+    if not pode_enviar_mensagem(request.user, outra):
+        messages.error(request, AVISO_MENSAGEM_BLOQUEADA)
         return redirect("profile:perfil_publico", username=outra.username)
 
     with transaction.atomic():

@@ -12,7 +12,6 @@
         </a>
         <h1>Discussão</h1>
       </div>
-      {% if messages %}{% for message in messages %}<div role="alert">{{ message }}</div>{% endfor %}{% endif %}
       {% with original=post.post_original %}
         {% include "includes/post_card.html" with return_to="post" mostrar_comentarios=True %}
         {% include "includes/post_comments.html" with return_to="post" %}

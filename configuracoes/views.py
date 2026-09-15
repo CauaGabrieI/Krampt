@@ -10,6 +10,7 @@ from django.db import transaction
 from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
+from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_GET, require_http_methods
 
 from login.models import VerificacaoEmail
@@ -20,10 +21,8 @@ from profile.models import Perfil
 
 from .forms import (
     AparenciaForm,
-    ConfirmacaoForm,
     ContaForm,
     ExcluirContaForm,
-    MensagensForm,
     NotificacoesForm,
     PrivacidadeForm,
 )
@@ -33,7 +32,6 @@ from .models import PreferenciasUsuario
 SECOES = (
     ("conta", "Conta", "manage_accounts"),
     ("privacidade", "Privacidade", "lock"),
-    ("mensagens", "Mensagens", "chat"),
     ("notificacoes", "Notificações", "notifications"),
     ("seguranca", "Segurança", "shield"),
     ("aparencia", "Aparência", "palette"),
@@ -42,7 +40,6 @@ SECOES = (
 )
 FORMULARIOS_PREFERENCIAS = {
     "privacidade": PrivacidadeForm,
-    "mensagens": MensagensForm,
     "notificacoes": NotificacoesForm,
     "aparencia": AparenciaForm,
 }
@@ -79,6 +76,7 @@ def _formulario_da_secao(request, secao, preferencias):
 
 
 @login_required
+@sensitive_post_parameters("senha_atual", "senha")
 @require_http_methods(["GET", "POST"])
 def configuracoes_view(request, secao="conta"):
     secoes_validas = {item[0] for item in SECOES}
@@ -90,13 +88,17 @@ def configuracoes_view(request, secao="conta"):
     if request.method == "POST":
         acao = request.POST.get("acao", "salvar")
         if acao == "desativar":
-            confirmacao = ConfirmacaoForm(request.POST)
-            if confirmacao.is_valid() and confirmacao.cleaned_data["confirmacao"] == request.user.username:
+            confirmacao = ExcluirContaForm(request.POST)
+            if (
+                confirmacao.is_valid()
+                and confirmacao.cleaned_data["confirmacao"] == request.user.username
+                and request.user.check_password(confirmacao.cleaned_data["senha"])
+            ):
                 request.user.is_active = False
                 request.user.save(update_fields=["is_active"])
                 logout(request)
                 return redirect("login:login")
-            messages.error(request, "Digite seu usuário exatamente para desativar a conta.")
+            messages.error(request, "Confirmação ou senha inválida.")
             return redirect("configuracoes:secao", secao="conta")
         elif acao == "excluir_conta":
             confirmacao = ExcluirContaForm(request.POST)

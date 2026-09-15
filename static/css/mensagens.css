@@ -249,6 +249,8 @@
 .dm-send { width: 44px; min-width: 44px; height: 44px; padding: 0; border-radius: 0; }
 .dm-send .material-symbols-outlined { font-size: 19px; }
 .dm-compose-error { margin: 0; padding: 0 16px 12px; color: #ff9b9b; font-size: 12px; background: var(--surface); }
+.dm-message-blocked { display: flex; flex: 0 0 auto; align-items: center; gap: 9px; margin: 0; padding: 17px 20px; border-top: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 12px; }
+.dm-message-blocked .material-symbols-outlined { color: var(--primary-light); font-size: 18px; }
 .dm-person-form { margin: 0; }
 .dm-person-button { width: 100%; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 .dm-person-button:hover { background: var(--surface-raised); }

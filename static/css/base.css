@@ -169,3 +169,45 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
 }
 .action-icon { display: block; flex: 0 0 18px; width: 18px; height: 18px; object-fit: contain; filter: invert(1); }
 .eyebrow { margin: 0 0 5px; color: var(--primary-light); font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.toast-region {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  z-index: 100;
+  display: grid;
+  gap: 10px;
+  width: min(390px, calc(100vw - 32px));
+  pointer-events: none;
+}
+.global-toast {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  min-height: 54px;
+  padding: 11px 11px 11px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-soft);
+  pointer-events: auto;
+  animation: toast-enter .18s ease-out both;
+}
+.global-toast--success { border-left-color: #4fb27a; }
+.global-toast--warning { border-left-color: #d7a43b; }
+.global-toast--error { border-left-color: #d85b6d; }
+.global-toast-icon { color: var(--primary-light); font-size: 21px; }
+.global-toast--success .global-toast-icon { color: #69cb91; }
+.global-toast--warning .global-toast-icon { color: #efbe55; }
+.global-toast--error .global-toast-icon { color: #ff8292; }
+.global-toast-text { font-size: 12px; font-weight: 700; line-height: 1.45; overflow-wrap: anywhere; }
+.global-toast-close { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; background: transparent; color: var(--muted); }
+.global-toast-close:hover { background: var(--surface-raised); color: var(--text); }
+.global-toast-close .material-symbols-outlined { font-size: 18px; }
+.global-toast.is-leaving { animation: toast-leave .16s ease-in both; }
+@keyframes toast-enter { from { opacity: 0; transform: translateY(-8px); } }
+@keyframes toast-leave { to { opacity: 0; transform: translateX(12px); } }
+@media (max-width: 600px) {
+  .toast-region { top: 72px; right: 12px; left: 12px; width: auto; }
+}

@@ -36,7 +36,7 @@ class ConfiguracoesTests(TestCase):
         self.assertEqual(resposta.status_code, 302)
 
     def test_todas_as_secoes_abrem(self):
-        for secao in ("conta", "privacidade", "mensagens", "notificacoes", "seguranca", "aparencia", "conteudo", "dados"):
+        for secao in ("conta", "privacidade", "notificacoes", "seguranca", "aparencia", "conteudo", "dados"):
             with self.subTest(secao=secao):
                 resposta = self.client.get(reverse("configuracoes:secao", args=[secao]))
                 self.assertEqual(resposta.status_code, 200)
@@ -44,7 +44,7 @@ class ConfiguracoesTests(TestCase):
     def test_salva_username_mantendo_o_proprio_email_sem_nova_verificacao(self):
         resposta = self.client.post(
             reverse("configuracoes:secao", args=["conta"]),
-            {"username": "caua_novo", "email": self.caua.email},
+            {"username": "caua_novo", "email": self.caua.email, "senha_atual": "Senha!Forte123"},
         )
         self.assertRedirects(resposta, reverse("configuracoes:secao", args=["conta"]))
         self.caua.refresh_from_db()
@@ -55,7 +55,7 @@ class ConfiguracoesTests(TestCase):
     def test_email_vazio_preserva_o_email_atual(self):
         resposta = self.client.post(
             reverse("configuracoes:secao", args=["conta"]),
-            {"username": "caua_novo", "email": ""},
+            {"username": "caua_novo", "email": "", "senha_atual": "Senha!Forte123"},
         )
         self.assertRedirects(resposta, reverse("configuracoes:secao", args=["conta"]))
         self.caua.refresh_from_db()
@@ -65,14 +65,14 @@ class ConfiguracoesTests(TestCase):
     def test_proprio_email_atual_nao_gera_erro_de_unicidade(self):
         resposta = self.client.post(
             reverse("configuracoes:secao", args=["conta"]),
-            {"username": "caua", "email": "CAUA@example.com"},
+            {"username": "caua", "email": "CAUA@example.com", "senha_atual": "Senha!Forte123"},
         )
         self.assertRedirects(resposta, reverse("configuracoes:secao", args=["conta"]))
 
     def test_rejeita_username_e_email_de_outro_usuario(self):
         resposta = self.client.post(
             reverse("configuracoes:secao", args=["conta"]),
-            {"username": " ANA ", "email": "ANA@example.com"},
+            {"username": " ANA ", "email": "ANA@example.com", "senha_atual": "Senha!Forte123"},
         )
         self.assertEqual(resposta.status_code, 200)
         self.assertContains(resposta, "Este usuário já está em uso.")
@@ -81,13 +81,37 @@ class ConfiguracoesTests(TestCase):
     def test_troca_de_email_exige_nova_verificacao(self):
         resposta = self.client.post(
             reverse("configuracoes:secao", args=["conta"]),
-            {"username": "caua", "email": "novo@example.com"},
+            {"username": "caua", "email": "novo@example.com", "senha_atual": "Senha!Forte123"},
         )
         self.assertRedirects(resposta, reverse("verificar_email"))
         self.caua.refresh_from_db()
         self.assertEqual(self.caua.email, "novo@example.com")
         self.assertFalse(self.caua.is_active)
         self.assertEqual(mail.outbox[-1].to, ["novo@example.com"])
+
+    def test_senha_atual_incorreta_impede_alteracao_de_username(self):
+        resposta = self.client.post(
+            reverse("configuracoes:secao", args=["conta"]),
+            {"username": "nao_salvar", "email": self.caua.email, "senha_atual": "errada"},
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "Senha atual incorreta.")
+        self.caua.refresh_from_db()
+        self.assertEqual(self.caua.username, "caua")
+
+    def test_senha_atual_incorreta_impede_alteracao_e_verificacao_de_email(self):
+        resposta = self.client.post(
+            reverse("configuracoes:secao", args=["conta"]),
+            {"username": "caua", "email": "novo@example.com", "senha_atual": "errada"},
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "Senha atual incorreta.")
+        self.caua.refresh_from_db()
+        self.assertEqual(self.caua.email, "caua@example.com")
+        self.assertTrue(self.caua.is_active)
+        self.assertEqual(len(mail.outbox), 0)
 
     def test_aba_perfil_nao_existe_e_editor_original_continua_acessivel(self):
         conta = self.client.get(reverse("configuracoes:inicio"))
@@ -99,6 +123,14 @@ class ConfiguracoesTests(TestCase):
         )
         self.assertEqual(self.client.get(reverse("profile:editar")).status_code, 200)
 
+    def test_aba_mensagens_nao_existe_nas_configuracoes(self):
+        resposta = self.client.get(reverse("configuracoes:inicio"))
+        self.assertNotContains(resposta, "/configuracoes/mensagens/")
+        self.assertEqual(
+            self.client.get(reverse("configuracoes:secao", args=["mensagens"])).status_code,
+            404,
+        )
+
     def test_seguranca_aponta_para_fluxo_existente_de_senha(self):
         resposta = self.client.get(reverse("configuracoes:secao", args=["seguranca"]))
         self.assertContains(resposta, reverse("login:password_reset"))
@@ -107,9 +139,28 @@ class ConfiguracoesTests(TestCase):
 
     def test_desativacao_exige_confirmacao_exata(self):
         url = reverse("configuracoes:secao", args=["conta"])
-        self.client.post(url, {"acao": "desativar", "confirmacao": "errado"})
+        self.client.post(
+            url,
+            {"acao": "desativar", "confirmacao": "errado", "senha": "Senha!Forte123"},
+        )
         self.caua.refresh_from_db()
         self.assertTrue(self.caua.is_active)
+
+    def test_desativacao_exige_senha_atual_correta(self):
+        url = reverse("configuracoes:secao", args=["conta"])
+        self.client.post(
+            url,
+            {"acao": "desativar", "confirmacao": "caua", "senha": "errada"},
+        )
+        self.caua.refresh_from_db()
+        self.assertTrue(self.caua.is_active)
+
+        self.client.post(
+            url,
+            {"acao": "desativar", "confirmacao": "caua", "senha": "Senha!Forte123"},
+        )
+        self.caua.refresh_from_db()
+        self.assertFalse(self.caua.is_active)
 
     def test_exclusao_de_conta_exige_username_e_senha(self):
         usuario = User.objects.create_user(

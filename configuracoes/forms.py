@@ -16,6 +16,11 @@ class ContaForm(forms.Form):
         required=False,
         help_text="Deixe como está para manter seu e-mail atual.",
     )
+    senha_atual = forms.CharField(
+        label="Senha atual",
+        strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}),
+    )
 
     def __init__(self, usuario, *args, **kwargs):
         self.usuario = usuario
@@ -36,6 +41,12 @@ class ContaForm(forms.Form):
             raise forms.ValidationError("Este e-mail já está em uso.")
         return email
 
+    def clean_senha_atual(self):
+        senha = self.cleaned_data["senha_atual"]
+        if not self.usuario.check_password(senha):
+            raise forms.ValidationError("Senha atual incorreta.")
+        return senha
+
     def save(self):
         email_alterado = self.usuario.email.lower() != self.cleaned_data["email"]
         self.usuario.username = self.cleaned_data["username"]
@@ -51,16 +62,6 @@ class PrivacidadeForm(forms.ModelForm):
         labels = {
             "permitir_novas_conversas": "Permitir novas conversas",
             "mensagens_de": "Quem pode enviar mensagens",
-        }
-
-
-class MensagensForm(forms.ModelForm):
-    class Meta:
-        model = PreferenciasUsuario
-        fields = ("permitir_novas_conversas", "mensagens_de")
-        labels = {
-            "permitir_novas_conversas": "Permitir novas conversas",
-            "mensagens_de": "Aceitar mensagens de",
         }
 
 

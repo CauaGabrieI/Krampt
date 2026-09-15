@@ -3,8 +3,10 @@ from django.contrib.auth.models import AnonymousUser
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
-from mensagens.models import Conversa, Mensagem
+from configuracoes.models import PreferenciasUsuario
 from mensagens.context_processors import mensagens_nao_lidas
+from mensagens.models import Conversa, Mensagem
+from mensagens.services import AVISO_MENSAGEM_BLOQUEADA
 from profile.models import Perfil
 
 User = get_user_model()
@@ -173,6 +175,63 @@ class ConversaTests(TestCase):
         self.assertTrue(
             Mensagem.objects.filter(autor=self.caua, conteudo="Tudo bem?").exists()
         )
+
+    def test_preferencia_atual_bloqueia_envio_em_conversa_existente(self):
+        self.client.force_login(self.caua)
+        url = reverse("mensagens:detalhe", args=[self.conversa.pk])
+        self.client.post(url, {"conteudo": "Enviada antes da mudança"})
+        self.assertTrue(Mensagem.objects.filter(conteudo="Enviada antes da mudança").exists())
+
+        preferencias, _ = PreferenciasUsuario.objects.get_or_create(usuario=self.maria)
+        preferencias.permitir_novas_conversas = False
+        preferencias.save(update_fields=["permitir_novas_conversas"])
+
+        resposta = self.client.post(
+            url,
+            {"conteudo": "Não deve chegar"},
+            follow=True,
+        )
+
+        self.assertFalse(Mensagem.objects.filter(conteudo="Não deve chegar").exists())
+        self.assertContains(resposta, AVISO_MENSAGEM_BLOQUEADA)
+        self.assertContains(resposta, 'class="global-toast global-toast--error"')
+        self.assertNotContains(resposta, 'class="dm-composer"')
+        self.assertContains(resposta, "Oi, Maria!")
+
+    def test_permissao_seguindo_e_reavaliada_em_cada_envio(self):
+        preferencias, _ = PreferenciasUsuario.objects.get_or_create(usuario=self.maria)
+        preferencias.mensagens_de = PreferenciasUsuario.PermissaoMensagem.SEGUINDO
+        preferencias.save(update_fields=["mensagens_de"])
+        self.client.force_login(self.caua)
+        url = reverse("mensagens:detalhe", args=[self.conversa.pk])
+
+        self.client.post(url, {"conteudo": "Bloqueada"})
+        self.assertFalse(Mensagem.objects.filter(conteudo="Bloqueada").exists())
+
+        perfil_maria, _ = Perfil.objects.get_or_create(usuario=self.maria)
+        perfil_maria.seguindo.add(self.caua)
+        self.client.post(url, {"conteudo": "Permitida"})
+        self.assertTrue(Mensagem.objects.filter(autor=self.caua, conteudo="Permitida").exists())
+
+        perfil_maria.seguindo.remove(self.caua)
+        self.client.post(url, {"conteudo": "Bloqueada novamente"})
+        self.assertFalse(Mensagem.objects.filter(conteudo="Bloqueada novamente").exists())
+
+    def test_reabrir_permissao_libera_conversa_existente(self):
+        preferencias, _ = PreferenciasUsuario.objects.get_or_create(usuario=self.maria)
+        preferencias.permitir_novas_conversas = False
+        preferencias.save(update_fields=["permitir_novas_conversas"])
+        self.client.force_login(self.caua)
+        url = reverse("mensagens:detalhe", args=[self.conversa.pk])
+
+        self.client.post(url, {"conteudo": "Bloqueada"})
+        preferencias.permitir_novas_conversas = True
+        preferencias.mensagens_de = PreferenciasUsuario.PermissaoMensagem.TODOS
+        preferencias.save(update_fields=["permitir_novas_conversas", "mensagens_de"])
+        self.client.post(url, {"conteudo": "Liberada"})
+
+        self.assertFalse(Mensagem.objects.filter(conteudo="Bloqueada").exists())
+        self.assertTrue(Mensagem.objects.filter(autor=self.caua, conteudo="Liberada").exists())
 
     def test_mensagem_vazia_nao_e_enviada(self):
         self.client.force_login(self.caua)

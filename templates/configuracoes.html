@@ -29,10 +29,6 @@
       </nav>
 
       <section class="settings-content">
-        {% for mensagem in messages %}
-          <p class="settings-feedback settings-feedback--{{ mensagem.tags|default:'info' }}" role="status">{{ mensagem }}</p>
-        {% endfor %}
-
         {% if secao == "conta" %}
           <div class="settings-section-heading">
             <h2>Conta</h2>
@@ -57,6 +53,8 @@
                 <input type="hidden" name="acao" value="desativar">
                 <label for="deactivate-confirm">Confirmar usuário</label>
                 <input id="deactivate-confirm" name="confirmacao" required autocomplete="off">
+                <label for="deactivate-password">Senha atual</label>
+                <input id="deactivate-password" type="password" name="senha" required autocomplete="current-password">
                 <button class="settings-danger-button" type="submit">Desativar conta</button>
               </form>
               <form method="post">
@@ -75,11 +73,6 @@
           <div class="settings-section-heading"><h2>Privacidade</h2><p>Controle quem pode iniciar conversas com você.</p></div>
           <form class="settings-form" method="post">{% csrf_token %}{% include "includes/settings_form_fields.html" %}<button class="primary-button" type="submit">Salvar alterações</button></form>
           <div class="settings-coming"><strong>Conta privada e descoberta por e-mail</strong><span>Em breve — dependem de pedidos de seguimento e busca privada.</span></div>
-
-        {% elif secao == "mensagens" %}
-          <div class="settings-section-heading"><h2>Mensagens</h2><p>Defina quem pode abrir novas conversas privadas.</p></div>
-          <form class="settings-form" method="post">{% csrf_token %}{% include "includes/settings_form_fields.html" %}<button class="primary-button" type="submit">Salvar alterações</button></form>
-          <div class="settings-coming"><strong>Solicitações, confirmação de leitura, bloqueios e status de digitação</strong><span>Em breve — o chat atual ainda não possui estados separados para esses recursos.</span></div>
 
         {% elif secao == "notificacoes" %}
           <div class="settings-section-heading"><h2>Notificações</h2><p>Escolha quais atividades criam alertas dentro do Krampt.</p></div>
