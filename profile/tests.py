@@ -77,9 +77,11 @@ class SeguirUsuarioTests(TestCase):
         self.assertRedirects(resposta, busca_url)
 
         busca = self.client.get(busca_url)
-        self.assertContains(busca, 'class="follow-button is-following"', count=2)
+        self.assertContains(busca, 'class="follow-button is-following"', count=1)
+        self.assertNotContains(busca, "<h2>Seguindo</h2>", html=True)
         perfil = self.client.get(reverse("profile:perfil_publico", args=[self.ana.username]))
-        self.assertContains(perfil, 'class="follow-button is-following"', count=2)
+        self.assertContains(perfil, 'class="follow-button is-following"', count=1)
+        self.assertNotContains(perfil, "<h2>Seguindo</h2>", html=True)
 
         resposta = self.client.post(
             seguir_url,

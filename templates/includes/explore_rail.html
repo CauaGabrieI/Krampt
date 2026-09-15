@@ -36,25 +36,5 @@
   </section>
   {% endif %}
 
-  {% if seguindo_usuarios %}
-  <section class="rail-card">
-    <h2>Seguindo</h2>
-    <ul class="who-to-follow">
-      {% for seguido in seguindo_usuarios %}
-        <li>
-          <a class="who-to-follow-info" href="{% url 'profile:perfil_publico' seguido.username %}">
-            {% include "includes/avatar.html" with usuario=seguido avatar_class="avatar-small" %}
-            <span class="who-to-follow-text">
-              <strong>{{ seguido.first_name|default:seguido.username }}</strong>
-              <span>@{{ seguido.username }}</span>
-            </span>
-          </a>
-          {% include "includes/follow_button.html" with usuario=seguido %}
-        </li>
-      {% endfor %}
-    </ul>
-  </section>
-  {% endif %}
-
   <div class="rail-footer">Krampt.</div>
 </aside>
