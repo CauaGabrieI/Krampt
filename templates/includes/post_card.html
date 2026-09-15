@@ -195,11 +195,16 @@
           <input type="hidden" name="return_to" value="{{ return_to }}">
           <input type="hidden" name="entry_id" value="{{ post.id }}">
           <button class="post-action{% if original.curtido_pelo_usuario %} is-liked{% endif %}" type="submit" aria-label="{% if original.curtido_pelo_usuario %}Descurtir{% else %}Curtir{% endif %}" aria-pressed="{% if original.curtido_pelo_usuario %}true{% else %}false{% endif %}">
-            {% if original.curtido_pelo_usuario %}
-              <img src="{% static 'imgs/coracao.png' %}" width="19" height="19" alt="">
-            {% else %}
-              <img src="{% static 'imgs/coracao (1).png' %}" width="19" height="19" alt="">
-            {% endif %}
+            <img
+              class="like-icon"
+              src="{% if original.curtido_pelo_usuario %}{% static 'imgs/coracao.png' %}{% else %}{% static 'imgs/coracao (1).png' %}{% endif %}"
+              data-liked-src="{% static 'imgs/coracao.png' %}"
+              data-unliked-src="{% static 'imgs/coracao (1).png' %}"
+              width="19"
+              height="19"
+              alt=""
+              aria-hidden="true"
+            >
             <span>{{ original.total_curtidas }}</span>
           </button>
         </form>

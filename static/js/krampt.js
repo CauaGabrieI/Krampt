@@ -49,6 +49,15 @@
           botao.classList.toggle('is-liked', tipo !== 'repost' && dados.liked);
           botao.classList.toggle('is-reposted', tipo === 'repost' && dados.reposted);
           botao.setAttribute('aria-pressed', String(tipo === 'repost' ? dados.reposted : dados.liked));
+
+          if (tipo === 'like') {
+            botao.setAttribute('aria-label', dados.liked ? 'Descurtir' : 'Curtir');
+            const icone = botao.querySelector('.like-icon');
+            if (icone) {
+              icone.src = dados.liked ? icone.dataset.likedSrc : icone.dataset.unlikedSrc;
+            }
+          }
+
           const contador = botao.querySelector('span:last-child');
           if (contador) contador.textContent = dados.total;
         }
