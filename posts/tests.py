@@ -9,7 +9,15 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from PIL import Image
 
-from .models import Comentario, Hashtag, Post
+from .models import (
+    Comentario,
+    DenunciaPost,
+    Hashtag,
+    Post,
+    PostSemInteresse,
+    UsuarioBloqueado,
+    UsuarioSilenciado,
+)
 
 
 def imagem_de_teste(nome="foto.png", cor="purple"):
@@ -722,3 +730,166 @@ class ExclusaoDeArquivosFisicosTests(TransactionTestCase):
         self.assertTrue(default_storage.exists(caminho))
         self.client.post(reverse("posts:excluir_comentario", args=[comentario.pk]), {"return_path": reverse("home")})
         self.assertFalse(default_storage.exists(caminho))
+
+
+class MenuEAcoesSociaisDoPostTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        usuarios = get_user_model()
+        cls.autor = usuarios.objects.create_user(username="ana", password="senha-teste")
+        cls.leitor = usuarios.objects.create_user(username="caua", password="senha-teste")
+        cls.terceiro = usuarios.objects.create_user(username="leo", password="senha-teste")
+        cls.post = Post.objects.create(autor=cls.autor, conteudo="Post para menu")
+        cls.post_leitor = Post.objects.create(autor=cls.leitor, conteudo="Meu post")
+
+    def test_menu_de_post_alheio_mostra_acoes_de_usuario_e_nao_acoes_de_autor(self):
+        self.client.force_login(self.leitor)
+
+        resposta = self.client.get(reverse("home"))
+
+        self.assertContains(resposta, "Não tenho interesse neste post")
+        self.assertContains(resposta, "Seguir @ana")
+        self.assertContains(resposta, "Silenciar @ana")
+        self.assertContains(resposta, "Bloquear @ana")
+        self.assertContains(resposta, "Salvar post")
+        self.assertContains(resposta, "Copiar link")
+        self.assertContains(resposta, "Incorporar post")
+        self.assertContains(resposta, "Denunciar post")
+
+    def test_menu_de_post_proprio_mostra_acoes_de_autor(self):
+        self.client.force_login(self.leitor)
+
+        resposta = self.client.get(reverse("home"))
+
+        trecho = resposta.content.decode()
+        self.assertIn(reverse("posts:editar", args=[self.post_leitor.pk]), trecho)
+        self.assertIn(reverse("posts:fixar", args=[self.post_leitor.pk]), trecho)
+        self.assertIn(reverse("posts:atividade", args=[self.post_leitor.pk]), trecho)
+        self.assertIn(reverse("posts:excluir", args=[self.post_leitor.pk]), trecho)
+
+    def test_ignorar_post_cria_relacao_e_remove_do_feed_so_para_usuario(self):
+        self.client.force_login(self.leitor)
+
+        self.client.post(reverse("posts:ignorar", args=[self.post.pk]))
+
+        self.assertTrue(PostSemInteresse.objects.filter(usuario=self.leitor, post=self.post).exists())
+        self.assertNotContains(self.client.get(reverse("home")), "Post para menu")
+        self.client.force_login(self.terceiro)
+        self.assertContains(self.client.get(reverse("home")), "Post para menu")
+
+    def test_silenciar_usuario_remove_posts_do_feed_sem_remover_follow(self):
+        from profile.models import Perfil
+
+        perfil = Perfil.objects.create(usuario=self.leitor)
+        perfil.seguindo.add(self.autor)
+        self.client.force_login(self.leitor)
+
+        self.client.post(reverse("posts:silenciar_usuario", args=[self.autor.pk]))
+
+        self.assertTrue(UsuarioSilenciado.objects.filter(usuario=self.leitor, silenciado=self.autor).exists())
+        self.assertTrue(perfil.seguindo.filter(pk=self.autor.pk).exists())
+        self.assertNotContains(self.client.get(reverse("home")), "Post para menu")
+        self.assertContains(
+            self.client.get(reverse("profile:perfil_publico", args=[self.autor.username])),
+            "Post para menu",
+        )
+
+    def test_bloquear_usuario_remove_follows_e_filtra_feed(self):
+        from profile.models import Perfil
+
+        perfil_leitor = Perfil.objects.create(usuario=self.leitor)
+        perfil_autor = Perfil.objects.create(usuario=self.autor)
+        perfil_leitor.seguindo.add(self.autor)
+        perfil_autor.seguindo.add(self.leitor)
+        self.client.force_login(self.leitor)
+
+        self.client.post(reverse("posts:bloquear_usuario", args=[self.autor.pk]))
+
+        self.assertTrue(UsuarioBloqueado.objects.filter(usuario=self.leitor, bloqueado=self.autor).exists())
+        self.assertFalse(perfil_leitor.seguindo.filter(pk=self.autor.pk).exists())
+        self.assertFalse(perfil_autor.seguindo.filter(pk=self.leitor.pk).exists())
+        self.assertNotContains(self.client.get(reverse("home")), "Post para menu")
+
+    def test_bloqueio_impede_acoes_diretas_no_post(self):
+        comentario = Comentario.objects.create(post=self.post, autor=self.autor, conteudo="Base")
+        UsuarioBloqueado.objects.create(usuario=self.autor, bloqueado=self.leitor)
+        self.client.force_login(self.leitor)
+
+        urls = [
+            reverse("posts:curtir", args=[self.post.pk]),
+            reverse("posts:salvar", args=[self.post.pk]),
+            reverse("posts:republicar", args=[self.post.pk]),
+            reverse("posts:comentar", args=[self.post.pk]),
+            reverse("posts:curtir_comentario", args=[comentario.pk]),
+            reverse("posts:responder_comentario", args=[comentario.pk]),
+        ]
+        for url in urls:
+            with self.subTest(url=url):
+                self.assertEqual(self.client.post(url, {"conteudo": "tentativa"}).status_code, 404)
+
+    def test_nao_pode_bloquear_ou_silenciar_a_si_mesmo(self):
+        self.client.force_login(self.leitor)
+
+        self.assertEqual(self.client.post(reverse("posts:bloquear_usuario", args=[self.leitor.pk])).status_code, 403)
+        self.assertEqual(self.client.post(reverse("posts:silenciar_usuario", args=[self.leitor.pk])).status_code, 403)
+        self.assertFalse(UsuarioBloqueado.objects.exists())
+        self.assertFalse(UsuarioSilenciado.objects.exists())
+
+    def test_salvar_no_menu_reutiliza_salvos_por(self):
+        self.client.force_login(self.leitor)
+
+        self.client.post(reverse("posts:salvar", args=[self.post.pk]))
+
+        self.assertTrue(self.post.salvos_por.filter(pk=self.leitor.pk).exists())
+        self.assertContains(self.client.get(reverse("home")), "Remover dos salvos")
+
+    def test_denunciar_post_cria_denuncia_e_impede_duplicada(self):
+        self.client.force_login(self.leitor)
+        url = reverse("posts:denunciar", args=[self.post.pk])
+
+        self.client.post(url, {"motivo": DenunciaPost.Motivo.SPAM, "detalhes": "robô"})
+        self.client.post(url, {"motivo": DenunciaPost.Motivo.VIOLENCIA})
+
+        denuncia = DenunciaPost.objects.get(denunciante=self.leitor, post=self.post)
+        self.assertEqual(denuncia.motivo, DenunciaPost.Motivo.SPAM)
+        self.assertEqual(DenunciaPost.objects.count(), 1)
+
+    def test_autor_nao_denuncia_proprio_post(self):
+        self.client.force_login(self.autor)
+
+        resposta = self.client.post(
+            reverse("posts:denunciar", args=[self.post.pk]),
+            {"motivo": DenunciaPost.Motivo.SPAM},
+        )
+
+        self.assertEqual(resposta.status_code, 403)
+        self.assertFalse(DenunciaPost.objects.exists())
+
+    def test_fixar_post_substitui_anterior_e_nao_permite_post_alheio(self):
+        from profile.models import Perfil
+
+        outro = Post.objects.create(autor=self.leitor, conteudo="Outro fixado")
+        self.client.force_login(self.leitor)
+
+        self.client.post(reverse("posts:fixar", args=[outro.pk]))
+        self.client.post(reverse("posts:fixar", args=[self.post_leitor.pk]))
+        perfil = Perfil.objects.get(usuario=self.leitor)
+
+        self.assertEqual(perfil.post_fixado_id, self.post_leitor.pk)
+        self.assertEqual(self.client.post(reverse("posts:fixar", args=[self.post.pk])).status_code, 404)
+
+    def test_atividade_do_post_mostra_contagens_reais(self):
+        self.post_leitor.curtidas.add(self.autor)
+        self.post_leitor.salvos_por.add(self.autor, self.terceiro)
+        Comentario.objects.create(post=self.post_leitor, autor=self.autor, conteudo="Comentário")
+        Post.objects.create(autor=self.autor, original=self.post_leitor)
+        self.client.force_login(self.leitor)
+
+        resposta = self.client.get(reverse("posts:atividade", args=[self.post_leitor.pk]))
+
+        self.assertContains(resposta, ">1</strong>")
+        self.assertContains(resposta, ">2</strong>")
+        self.assertContains(resposta, "Curtidas")
+        self.assertContains(resposta, "Comentários")
+        self.assertContains(resposta, "Republicações")
+        self.assertContains(resposta, "Salvos")

@@ -35,8 +35,10 @@
           <div class="profile-summary-top">
             {% include "includes/avatar.html" with usuario=perfil_usuario avatar_class="profile-avatar" %}
             <div class="profile-summary-actions">
-              {% include "includes/follow_button.html" with usuario=perfil_usuario %}
-              {% if request.user != perfil_usuario %}
+              {% if not bloqueado %}
+                {% include "includes/follow_button.html" with usuario=perfil_usuario %}
+              {% endif %}
+              {% if request.user != perfil_usuario and not bloqueado %}
                 <form method="post" action="{% url 'mensagens:criar' %}">
                   {% csrf_token %}
                   <input type="hidden" name="usuario_id" value="{{ perfil_usuario.pk }}">
@@ -59,32 +61,49 @@
         </section>
       {% endwith %}
 
-      {% include "includes/profile_tabs.html" %}
+      {% if bloqueado %}
+        <div class="empty-state">
+          <span class="empty-state-icon material-symbols-outlined" aria-hidden="true">block</span>
+          <h2>Perfil indisponível</h2>
+          <p>Existe um bloqueio entre vocês, então o conteúdo deste perfil não aparece.</p>
+        </div>
+      {% else %}
+        {% include "includes/profile_tabs.html" %}
 
-      <section class="{% if aba == 'midia' %}profile-media-grid{% else %}post-list{% endif %}" aria-label="{% if aba == 'repostados' %}Republicações{% elif aba == 'midia' %}Mídia{% else %}Publicações{% endif %} de {{ perfil_usuario.username }}">
-        {% for post in posts %}
-          {% if aba == 'midia' %}
-            {% include "includes/profile_media.html" %}
-          {% else %}
-            {% include "includes/post_card.html" with return_to="perfil" mostrar_comentarios=False %}
-          {% endif %}
-        {% empty %}
-          <div class="empty-state">
-            <span class="empty-state-icon material-symbols-outlined" aria-hidden="true">{% if aba == 'repostados' %}repeat{% elif aba == 'midia' %}image{% else %}edit_square{% endif %}</span>
-            {% if aba == 'repostados' %}
-              <h2>Nenhuma republicação ainda</h2>
-              <p>Os posts republicados aparecerão aqui.</p>
-            {% elif aba == 'midia' %}
-              <h2>Nenhuma imagem ainda</h2>
-              <p>As publicações com foto aparecerão aqui.</p>
-            {% else %}
-              <h2>{{ perfil_usuario.first_name|default:perfil_usuario.username }} ainda não publicou nada</h2>
-              <p>Quando publicar, os posts aparecerão aqui.</p>
+        <section class="{% if aba == 'midia' %}profile-media-grid{% else %}post-list{% endif %}" aria-label="{% if aba == 'repostados' %}Republicações{% elif aba == 'midia' %}Mídia{% else %}Publicações{% endif %} de {{ perfil_usuario.username }}">
+          {% if post_fixado or posts %}
+            {% if post_fixado and aba != 'midia' %}
+              <div class="pinned-post-label">
+                <span class="material-symbols-outlined" aria-hidden="true">keep</span>
+                Post fixado
+              </div>
+              {% include "includes/post_card.html" with post=post_fixado return_to="perfil" mostrar_comentarios=False %}
             {% endif %}
-          </div>
-        {% endfor %}
-      </section>
-      {% include "includes/paginacao.html" %}
+            {% for post in posts %}
+              {% if aba == 'midia' %}
+                {% include "includes/profile_media.html" %}
+              {% else %}
+                {% include "includes/post_card.html" with return_to="perfil" mostrar_comentarios=False %}
+              {% endif %}
+            {% endfor %}
+          {% else %}
+            <div class="empty-state">
+              <span class="empty-state-icon material-symbols-outlined" aria-hidden="true">{% if aba == 'repostados' %}repeat{% elif aba == 'midia' %}image{% else %}edit_square{% endif %}</span>
+              {% if aba == 'repostados' %}
+                <h2>Nenhuma republicação ainda</h2>
+                <p>Os posts republicados aparecerão aqui.</p>
+              {% elif aba == 'midia' %}
+                <h2>Nenhuma imagem ainda</h2>
+                <p>As publicações com foto aparecerão aqui.</p>
+              {% else %}
+                <h2>{{ perfil_usuario.first_name|default:perfil_usuario.username }} ainda não publicou nada</h2>
+                <p>Quando publicar, os posts aparecerão aqui.</p>
+              {% endif %}
+            </div>
+          {% endif %}
+        </section>
+        {% include "includes/paginacao.html" %}
+      {% endif %}
     </main>
     {% include "includes/hashtags_rail.html" %}
   </div>

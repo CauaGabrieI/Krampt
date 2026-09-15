@@ -1,5 +1,6 @@
 from django import forms
 
+from .models import DenunciaPost
 from .services import validar_limites_da_imagem
 
 AUDIO_TYPES = {"audio/mpeg", "audio/wav", "audio/x-wav", "audio/ogg", "audio/webm", "audio/mp4", "audio/x-m4a"}
@@ -105,3 +106,8 @@ class ComentarioForm(forms.Form):
         validar_audio(audio)
         dados["conteudo"] = conteudo
         return dados
+
+
+class DenunciaPostForm(forms.Form):
+    motivo = forms.ChoiceField(choices=DenunciaPost.Motivo.choices)
+    detalhes = forms.CharField(max_length=1000, required=False)

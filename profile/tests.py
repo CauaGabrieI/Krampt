@@ -8,6 +8,7 @@ from django.urls import reverse
 from PIL import Image
 
 from posts.models import Post
+from posts.models import UsuarioBloqueado
 from mensagens.models import Conversa
 from .models import Perfil
 
@@ -171,6 +172,20 @@ class SeguirUsuarioTests(TestCase):
             resposta, reverse("mensagens:detalhe", args=[conversa.pk])
         )
         self.assertEqual(Conversa.objects.count(), 1)
+
+    def test_bloqueio_impede_novo_follow_e_oculta_acoes_do_perfil(self):
+        UsuarioBloqueado.objects.create(usuario=self.ana, bloqueado=self.caua)
+        self.client.force_login(self.caua)
+
+        resposta = self.client.post(reverse("profile:seguir", args=[self.ana.pk]))
+
+        self.assertRedirects(resposta, reverse("home"), fetch_redirect_response=False)
+        self.assertFalse(Perfil.objects.filter(usuario=self.caua, seguindo=self.ana).exists())
+        perfil = self.client.get(reverse("profile:perfil_publico", args=[self.ana.username]))
+        resumo = perfil.content.decode().split('<div class="profile-summary-actions">', 1)[1].split("</div>", 1)[0]
+        self.assertContains(perfil, "Perfil indisponível")
+        self.assertNotIn('class="follow-button"', resumo)
+        self.assertNotIn('class="profile-message-button"', resumo)
 
 
 def foto_de_teste(nome="foto.png", cor="purple"):

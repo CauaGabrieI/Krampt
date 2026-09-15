@@ -3,14 +3,15 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from io import BytesIO
 
-from django.db.models import Count, Exists, OuterRef, Prefetch
+from django.db import transaction
+from django.db.models import Count, Exists, OuterRef, Prefetch, Q
 from django.core.files.base import ContentFile
 from django.urls import reverse
 from django.utils.html import escape, urlize
 from django.utils.text import slugify
 from django.utils.safestring import mark_safe
 
-from .models import Comentario, Post
+from .models import Comentario, Post, PostSemInteresse, UsuarioBloqueado, UsuarioSilenciado
 
 
 _LIMPEZA_AUTOMATICA_DE_MIDIAS_SUSPENSA = ContextVar(
@@ -143,6 +144,70 @@ def format_html_link(url, texto):
     return mark_safe(f'<a class="hashtag-link" href="{escape(url)}">{escape(texto)}</a>')
 
 
+def usuarios_bloqueados_ids(usuario):
+    if not usuario.is_authenticated:
+        return []
+    ids_bloqueados = UsuarioBloqueado.objects.filter(usuario=usuario).values_list(
+        "bloqueado_id", flat=True
+    )
+    ids_que_bloquearam = UsuarioBloqueado.objects.filter(bloqueado=usuario).values_list(
+        "usuario_id", flat=True
+    )
+    return list(set(ids_bloqueados).union(ids_que_bloquearam))
+
+
+def usuario_bloqueado_entre(usuario, outro):
+    if not usuario.is_authenticated or usuario.pk == outro.pk:
+        return False
+    return UsuarioBloqueado.objects.filter(
+        Q(usuario=usuario, bloqueado=outro) | Q(usuario=outro, bloqueado=usuario)
+    ).exists()
+
+
+def filtrar_posts_visiveis(queryset, usuario):
+    if not usuario.is_authenticated:
+        return queryset
+    posts_ignorados = PostSemInteresse.objects.filter(usuario=usuario).values_list(
+        "post_id", flat=True
+    )
+    silenciados = UsuarioSilenciado.objects.filter(usuario=usuario).values_list(
+        "silenciado_id", flat=True
+    )
+    bloqueios = UsuarioBloqueado.objects.filter(usuario=usuario).values_list(
+        "bloqueado_id", flat=True
+    )
+    bloqueadores = UsuarioBloqueado.objects.filter(bloqueado=usuario).values_list(
+        "usuario_id", flat=True
+    )
+    return (
+        queryset.exclude(pk__in=posts_ignorados)
+        .exclude(autor_id__in=silenciados)
+        .exclude(autor_id__in=bloqueios)
+        .exclude(autor_id__in=bloqueadores)
+        .exclude(original_id__in=posts_ignorados)
+        .exclude(original__autor_id__in=silenciados)
+        .exclude(original__autor_id__in=bloqueios)
+        .exclude(original__autor_id__in=bloqueadores)
+    )
+
+
+def bloquear_usuario(usuario, bloqueado):
+    if usuario.pk == bloqueado.pk:
+        return False
+    from profile.models import Perfil
+
+    with transaction.atomic():
+        UsuarioBloqueado.objects.get_or_create(usuario=usuario, bloqueado=bloqueado)
+        UsuarioSilenciado.objects.filter(usuario=usuario, silenciado=bloqueado).delete()
+        perfil_usuario = Perfil.objects.filter(usuario=usuario).first()
+        perfil_bloqueado = Perfil.objects.filter(usuario=bloqueado).first()
+        if perfil_usuario:
+            perfil_usuario.seguindo.remove(bloqueado)
+        if perfil_bloqueado:
+            perfil_bloqueado.seguindo.remove(usuario)
+    return True
+
+
 def posts_para_exibir(queryset, usuario, incluir_comentarios=True):
     entradas = list(
         queryset.select_related("autor", "autor__perfil")
@@ -160,6 +225,12 @@ def posts_para_exibir(queryset, usuario, incluir_comentarios=True):
     salvo_pelo_usuario = Post.salvos_por.through.objects.filter(
         post_id=OuterRef("pk"), user_id=usuario.pk
     )
+    bloqueado_pelo_usuario = UsuarioBloqueado.objects.filter(
+        usuario=usuario, bloqueado_id=OuterRef("autor_id")
+    )
+    silenciado_pelo_usuario = UsuarioSilenciado.objects.filter(
+        usuario=usuario, silenciado_id=OuterRef("autor_id")
+    )
     originais = (
         Post.objects.filter(pk__in=originais_ids)
         .select_related("autor", "autor__perfil")
@@ -171,6 +242,8 @@ def posts_para_exibir(queryset, usuario, incluir_comentarios=True):
             curtido_pelo_usuario=Exists(curtida_do_usuario),
             republicado_pelo_usuario=Exists(republicacao_do_usuario),
             salvo_pelo_usuario=Exists(salvo_pelo_usuario),
+            bloqueado_pelo_usuario=Exists(bloqueado_pelo_usuario),
+            silenciado_pelo_usuario=Exists(silenciado_pelo_usuario),
         )
     )
     if incluir_comentarios:
@@ -199,11 +272,19 @@ def posts_para_exibir(queryset, usuario, incluir_comentarios=True):
             Prefetch("comentarios", queryset=comentarios, to_attr="comentarios_raiz")
         )
     originais = {post.pk: post for post in originais}
+    post_fixado_id = None
+    if usuario.is_authenticated:
+        from profile.models import Perfil
+
+        post_fixado_id = Perfil.objects.filter(usuario=usuario).values_list(
+            "post_fixado_id", flat=True
+        ).first()
 
     for entrada in entradas:
         entrada.post_original = originais[entrada.original_id or entrada.pk]
         entrada.post_original.conteudo_formatado = conteudo_com_hashtags(
             entrada.post_original.conteudo
         )
+        entrada.post_original.fixado_pelo_usuario = entrada.post_original.pk == post_fixado_id
 
     return entradas

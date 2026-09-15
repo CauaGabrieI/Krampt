@@ -42,6 +42,7 @@ class Post(models.Model):
     criado_em = models.DateTimeField(
         auto_now_add=True
     )
+    editado_em = models.DateTimeField(null=True, blank=True)
 
     @property
     def fotos(self):
@@ -98,3 +99,101 @@ class Comentario(models.Model):
 
     class Meta:
         ordering = ["criado_em"]
+
+
+class PostSemInteresse(models.Model):
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="posts_sem_interesse",
+    )
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="ignorado_por")
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["usuario", "post"], name="post_sem_interesse_unico"),
+        ]
+
+
+class UsuarioSilenciado(models.Model):
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="usuarios_silenciados",
+    )
+    silenciado = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="silenciado_por",
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["usuario", "silenciado"], name="usuario_silenciado_unico"),
+            models.CheckConstraint(
+                condition=~models.Q(usuario=models.F("silenciado")),
+                name="usuario_nao_silencia_a_si_mesmo",
+            ),
+        ]
+
+
+class UsuarioBloqueado(models.Model):
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="usuarios_bloqueados",
+    )
+    bloqueado = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="bloqueado_por",
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["usuario", "bloqueado"], name="usuario_bloqueado_unico"),
+            models.CheckConstraint(
+                condition=~models.Q(usuario=models.F("bloqueado")),
+                name="usuario_nao_bloqueia_a_si_mesmo",
+            ),
+        ]
+
+
+class DenunciaPost(models.Model):
+    class Motivo(models.TextChoices):
+        SPAM = "spam", "Spam"
+        ASSEDIO = "assedio", "Assédio"
+        ODIO = "odio", "Discurso de ódio"
+        SEXUAL = "sexual", "Conteúdo sexual"
+        VIOLENCIA = "violencia", "Violência"
+        INFORMACAO_PESSOAL = "informacao_pessoal", "Informação pessoal"
+        OUTRO = "outro", "Outro"
+
+    class Status(models.TextChoices):
+        PENDENTE = "pendente", "Pendente"
+        EM_ANALISE = "em_analise", "Em análise"
+        RESOLVIDA = "resolvida", "Resolvida"
+        RECUSADA = "recusada", "Recusada"
+
+    denunciante = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="denuncias_enviadas",
+    )
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="denuncias")
+    motivo = models.CharField(max_length=32, choices=Motivo.choices)
+    detalhes = models.TextField(blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDENTE,
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["denunciante", "post"], name="denuncia_post_unica"),
+        ]

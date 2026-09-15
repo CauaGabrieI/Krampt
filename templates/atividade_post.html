@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Atividade do post | Krampt{% endblock %}
+{% block content %}
+  {% include "includes/site_header.html" with active_page="home" %}
+  <div class="app-shell">
+    {% include "includes/explore_rail.html" %}
+    <main class="feed edit-post-page">
+      <div class="feed-heading post-detail-heading">
+        <a class="profile-back-link" href="{% url 'posts:detalhe' post.id %}" aria-label="Voltar ao post">
+          <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+        </a>
+        <h1>Atividade do post</h1>
+      </div>
+      <section class="post-activity-panel" aria-label="Métricas do post">
+        <div>
+          <strong>{{ total_curtidas }}</strong>
+          <span>Curtidas</span>
+        </div>
+        <div>
+          <strong>{{ total_comentarios }}</strong>
+          <span>Comentários</span>
+        </div>
+        <div>
+          <strong>{{ total_republicacoes }}</strong>
+          <span>Republicações</span>
+        </div>
+        <div>
+          <strong>{{ total_salvos }}</strong>
+          <span>Salvos</span>
+        </div>
+      </section>
+      <article class="post activity-post-preview">
+        <p class="post-content">{{ post.conteudo_formatado|default:post.conteudo }}</p>
+      </article>
+    </main>
+  </div>
+{% endblock %}
+{% block scripts %}
+  <script src="{% static 'js/header_search.js' %}" defer></script>
+  <script src="{% static 'js/account_menu.js' %}" defer></script>
+{% endblock %}

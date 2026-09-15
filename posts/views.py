@@ -1,16 +1,36 @@
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.views.decorators.http import require_POST
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
-from django.http import JsonResponse
+from django.http import HttpResponseForbidden, JsonResponse
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from notificacoes.services import notificar, remover_notificacao
 from krampt.paginacao import parametros_sem_pagina, paginar
-from .models import Comentario, Hashtag, Post
-from .forms import ComentarioForm, EditarPostForm
-from .services import comprimir_imagem_lossless, posts_para_exibir
+from profile.models import Perfil
+from .models import (
+    Comentario,
+    DenunciaPost,
+    Hashtag,
+    Post,
+    PostSemInteresse,
+    UsuarioSilenciado,
+)
+from .forms import ComentarioForm, DenunciaPostForm, EditarPostForm
+from .services import (
+    bloquear_usuario,
+    comprimir_imagem_lossless,
+    conteudo_com_hashtags,
+    filtrar_posts_visiveis,
+    posts_para_exibir,
+)
+
+User = get_user_model()
+
+
 def _pagina_de_retorno(request):
     caminho = request.POST.get("return_path", "")
     if url_has_allowed_host_and_scheme(
@@ -38,7 +58,10 @@ def _erro_comentario(request, formulario, post_id):
 
 @login_required
 def detalhe_post(request, post_id):
-    post = get_object_or_404(Post, pk=post_id, original__isnull=True)
+    post = get_object_or_404(
+        filtrar_posts_visiveis(Post.objects.filter(original__isnull=True), request.user),
+        pk=post_id,
+    )
     entrada = posts_para_exibir(Post.objects.filter(pk=post.pk), request.user)[0]
     return render(request, "post_detalhe.html", {"post": entrada})
 
@@ -47,7 +70,10 @@ def detalhe_post(request, post_id):
 def hashtag_view(request, slug):
     hashtag = get_object_or_404(Hashtag, slug=slug)
     base = (
-        Post.objects.filter(Q(hashtags=hashtag) | Q(comentarios__hashtags=hashtag))
+        filtrar_posts_visiveis(
+            Post.objects.filter(Q(hashtags=hashtag) | Q(comentarios__hashtags=hashtag)),
+            request.user,
+        )
         .distinct()
         .order_by("-criado_em", "-pk")
     )
@@ -74,7 +100,8 @@ def editar_post(request, post_id):
         formulario = EditarPostForm(request.POST)
         if formulario.is_valid():
             post.conteudo = formulario.cleaned_data["conteudo"].strip()
-            post.save()
+            post.editado_em = timezone.now()
+            post.save(update_fields=["conteudo", "editado_em"])
             return redirect(_pagina_de_retorno(request) or "home")
     else:
         formulario = EditarPostForm(initial={"conteudo": post.conteudo})
@@ -117,7 +144,10 @@ def _voltar_para_posts(request, post_id=None):
 @login_required
 @require_POST
 def curtir_post(request, post_id):
-    post = get_object_or_404(Post, pk=post_id, original__isnull=True)
+    post = get_object_or_404(
+        filtrar_posts_visiveis(Post.objects.filter(original__isnull=True), request.user),
+        pk=post_id,
+    )
     curtida, criada = Post.curtidas.through.objects.get_or_create(
         post_id=post.pk, user_id=request.user.pk
     )
@@ -139,7 +169,10 @@ def curtir_post(request, post_id):
 @login_required
 @require_POST
 def salvar_post(request, post_id):
-    post = get_object_or_404(Post, pk=post_id, original__isnull=True)
+    post = get_object_or_404(
+        filtrar_posts_visiveis(Post.objects.filter(original__isnull=True), request.user),
+        pk=post_id,
+    )
     salvo = post.salvos_por.filter(pk=request.user.pk).exists()
     if salvo:
         post.salvos_por.remove(request.user)
@@ -153,8 +186,114 @@ def salvar_post(request, post_id):
 
 @login_required
 @require_POST
-def republicar_post(request, post_id):
+def ignorar_post(request, post_id):
     post = get_object_or_404(Post, pk=post_id, original__isnull=True)
+    PostSemInteresse.objects.get_or_create(usuario=request.user, post=post)
+    messages.success(request, "Post ocultado.")
+    resposta = _resposta_ajax(request, hidden=True, message="Post ocultado.")
+    if resposta:
+        return resposta
+    return redirect(_pagina_de_retorno(request) or "home")
+
+
+@login_required
+@require_POST
+def silenciar_usuario(request, usuario_id):
+    silenciado = get_object_or_404(User, pk=usuario_id)
+    if silenciado.pk == request.user.pk:
+        return HttpResponseForbidden("Você não pode silenciar a própria conta.")
+    UsuarioSilenciado.objects.get_or_create(usuario=request.user, silenciado=silenciado)
+    messages.success(request, f"@{silenciado.username} foi silenciado.")
+    resposta = _resposta_ajax(request, muted=True, message=f"@{silenciado.username} foi silenciado.")
+    if resposta:
+        return resposta
+    return redirect(_pagina_de_retorno(request) or "home")
+
+
+@login_required
+@require_POST
+def bloquear_usuario_view(request, usuario_id):
+    bloqueado = get_object_or_404(User, pk=usuario_id)
+    if not bloquear_usuario(request.user, bloqueado):
+        return HttpResponseForbidden("Você não pode bloquear a própria conta.")
+    messages.success(request, f"@{bloqueado.username} foi bloqueado.")
+    resposta = _resposta_ajax(request, blocked=True, message=f"@{bloqueado.username} foi bloqueado.")
+    if resposta:
+        return resposta
+    return redirect(_pagina_de_retorno(request) or "home")
+
+
+@login_required
+@require_POST
+def fixar_post(request, post_id):
+    post = get_object_or_404(Post, pk=post_id, autor=request.user, original__isnull=True)
+    perfil, _ = Perfil.objects.get_or_create(usuario=request.user)
+    if perfil.post_fixado_id == post.pk:
+        perfil.post_fixado = None
+        mensagem = "Post desafixado."
+    else:
+        perfil.post_fixado = post
+        mensagem = "Post fixado no perfil."
+    perfil.save(update_fields=["post_fixado"])
+    messages.success(request, mensagem)
+    resposta = _resposta_ajax(request, pinned=perfil.post_fixado_id == post.pk)
+    if resposta:
+        return resposta
+    return _voltar_para_posts(request, post.pk)
+
+
+@login_required
+def atividade_post(request, post_id):
+    post = get_object_or_404(Post, pk=post_id, autor=request.user, original__isnull=True)
+    post.conteudo_formatado = conteudo_com_hashtags(post.conteudo)
+    return render(
+        request,
+        "atividade_post.html",
+        {
+            "post": post,
+            "total_curtidas": post.curtidas.count(),
+            "total_comentarios": post.comentarios.count(),
+            "total_republicacoes": post.republicacoes.count(),
+            "total_salvos": post.salvos_por.count(),
+        },
+    )
+
+
+@login_required
+@require_POST
+def denunciar_post(request, post_id):
+    post = get_object_or_404(Post, pk=post_id, original__isnull=True)
+    if post.autor_id == request.user.pk:
+        return HttpResponseForbidden("Você não pode denunciar o próprio post.")
+    formulario = DenunciaPostForm(request.POST)
+    if not formulario.is_valid():
+        messages.error(request, "Escolha um motivo válido para a denúncia.")
+        return redirect(_pagina_de_retorno(request) or reverse("posts:detalhe", args=[post.pk]))
+    denuncia, criada = DenunciaPost.objects.get_or_create(
+        denunciante=request.user,
+        post=post,
+        defaults={
+            "motivo": formulario.cleaned_data["motivo"],
+            "detalhes": formulario.cleaned_data["detalhes"].strip(),
+        },
+    )
+    if not criada:
+        messages.warning(request, "Você já denunciou este post.")
+    else:
+        messages.success(request, "Denúncia enviada.")
+    resposta = _resposta_ajax(request, reported=criada)
+    if resposta:
+        return resposta
+    return redirect(_pagina_de_retorno(request) or reverse("posts:detalhe", args=[post.pk]))
+
+
+@login_required
+@require_POST
+def republicar_post(request, post_id):
+    post = get_object_or_404(
+        filtrar_posts_visiveis(Post.objects.filter(original__isnull=True), request.user),
+        pk=post_id,
+    )
     republicacao, criada = Post.objects.get_or_create(
         autor=request.user, original=post, defaults={"conteudo": ""}
     )
@@ -176,7 +315,10 @@ def republicar_post(request, post_id):
 @login_required
 @require_POST
 def comentar_post(request, post_id):
-    post = get_object_or_404(Post, pk=post_id, original__isnull=True)
+    post = get_object_or_404(
+        filtrar_posts_visiveis(Post.objects.filter(original__isnull=True), request.user),
+        pk=post_id,
+    )
     formulario = ComentarioForm(request.POST, request.FILES)
     if not formulario.is_valid():
         return _erro_comentario(request, formulario, post.pk)
@@ -198,7 +340,12 @@ def comentar_post(request, post_id):
 @login_required
 @require_POST
 def curtir_comentario(request, comentario_id):
-    comentario = get_object_or_404(Comentario, pk=comentario_id)
+    comentario = get_object_or_404(
+        Comentario.objects.filter(
+            post__in=filtrar_posts_visiveis(Post.objects.filter(original__isnull=True), request.user)
+        ),
+        pk=comentario_id,
+    )
     curtida, criada = Comentario.curtidas.through.objects.get_or_create(
         comentario_id=comentario.pk, user_id=request.user.pk
     )
@@ -244,7 +391,12 @@ def excluir_comentario(request, comentario_id):
 @login_required
 @require_POST
 def responder_comentario(request, comentario_id):
-    comentario = get_object_or_404(Comentario, pk=comentario_id)
+    comentario = get_object_or_404(
+        Comentario.objects.filter(
+            post__in=filtrar_posts_visiveis(Post.objects.filter(original__isnull=True), request.user)
+        ),
+        pk=comentario_id,
+    )
     formulario = ComentarioForm(request.POST, request.FILES)
     if not formulario.is_valid():
         return _erro_comentario(request, formulario, comentario.post_id)

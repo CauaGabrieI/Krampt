@@ -42,7 +42,10 @@ def seguindo_ids(usuario):
 
 
 def sugestoes_de_seguir(usuario, limite=6):
+    from posts.services import usuarios_bloqueados_ids
+
     excluidos = set(seguindo_ids(usuario))
+    excluidos.update(usuarios_bloqueados_ids(usuario))
     excluidos.add(usuario.pk)
     return list(
         User.objects.exclude(pk__in=excluidos).order_by("-date_joined", "username")[:limite]

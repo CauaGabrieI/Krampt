@@ -7,7 +7,7 @@ from django.db.models import Q
 from django.views.decorators.http import require_GET, require_POST
 from posts.models import Post, ImagemPost
 from django.db import transaction
-from posts.services import comprimir_imagem_lossless, posts_para_exibir
+from posts.services import comprimir_imagem_lossless, filtrar_posts_visiveis, posts_para_exibir
 from posts.forms import CriarPostForm
 from profile.services import seguindo_ids
 from .paginacao import parametros_sem_pagina, paginar
@@ -45,7 +45,7 @@ def Index_view(request):
     else:
         post_base = Post.objects.all()
         filtro = ""
-    post_base = post_base.order_by("-criado_em", "-pk")
+    post_base = filtrar_posts_visiveis(post_base, request.user).order_by("-criado_em", "-pk")
     pagina = paginar(post_base, request.GET.get("page"))
     contexto = {
         "posts": posts_para_exibir(pagina.object_list, request.user, incluir_comentarios=False),
@@ -72,7 +72,10 @@ def buscar_view(request):
             .order_by("username")[:20]
         )
         pagina_final = paginar(
-            Post.objects.filter(conteudo__icontains=termo).order_by("-criado_em", "-pk"),
+            filtrar_posts_visiveis(
+                Post.objects.filter(conteudo__icontains=termo),
+                request.user,
+            ).order_by("-criado_em", "-pk"),
             request.GET.get("page"),
         )
         posts = posts_para_exibir(

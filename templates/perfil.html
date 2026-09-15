@@ -52,13 +52,22 @@
       {% include "includes/profile_tabs.html" %}
 
       <section class="{% if aba == 'midia' %}profile-media-grid{% else %}post-list{% endif %}" aria-label="{% if aba == 'repostados' %}Minhas republicações{% elif aba == 'midia' %}Minha mídia{% else %}Minhas publicações{% endif %}">
-        {% for post in posts %}
-          {% if aba == 'midia' %}
-            {% include "includes/profile_media.html" %}
-          {% else %}
-            {% include "includes/post_card.html" with return_to="profile" mostrar_comentarios=False %}
+        {% if post_fixado or posts %}
+          {% if post_fixado and aba != 'midia' %}
+            <div class="pinned-post-label">
+              <span class="material-symbols-outlined" aria-hidden="true">keep</span>
+              Post fixado
+            </div>
+            {% include "includes/post_card.html" with post=post_fixado return_to="profile" mostrar_comentarios=False %}
           {% endif %}
-        {% empty %}
+          {% for post in posts %}
+            {% if aba == 'midia' %}
+              {% include "includes/profile_media.html" %}
+            {% else %}
+              {% include "includes/post_card.html" with return_to="profile" mostrar_comentarios=False %}
+            {% endif %}
+          {% endfor %}
+        {% else %}
           <div class="empty-state">
             <span class="empty-state-icon material-symbols-outlined" aria-hidden="true">{% if aba == 'repostados' %}repeat{% elif aba == 'midia' %}image{% else %}edit_square{% endif %}</span>
             {% if aba == 'repostados' %}
@@ -76,7 +85,7 @@
               </a>
             {% endif %}
           </div>
-        {% endfor %}
+        {% endif %}
       </section>
       {% include "includes/paginacao.html" %}
     </main>

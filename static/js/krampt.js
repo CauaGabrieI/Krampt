@@ -51,8 +51,16 @@
         form.reset();
         form.querySelector('textarea')?.focus();
       }
+      if (tipo === 'hide-post') {
+        form.closest('.post')?.remove();
+        if (window.KramptToast) window.KramptToast(dados.message || 'Post ocultado.', 'success');
+      }
       if (tipo === 'delete-comment') form.closest('.comment-item, .comment-reply')?.remove();
-      if (form.querySelector('.delete-post-action')) form.closest('.post')?.remove();
+      if (tipo === 'delete-post' || form.querySelector('.delete-post-action')) {
+        form.closest('.post')?.remove();
+        form.closest('dialog')?.close();
+        if (window.KramptToast) window.KramptToast('Post excluído.', 'success');
+      }
     } catch (erro) {
       const aviso = document.createElement('div');
       aviso.className = 'async-action-error';

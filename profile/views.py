@@ -6,7 +6,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.db.models import Count, Q
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 from posts.models import Post, ImagemPost
-from posts.services import posts_para_exibir
+from posts.services import posts_para_exibir, usuario_bloqueado_entre
 from notificacoes.services import notificar, remover_notificacao
 from krampt.paginacao import parametros_sem_pagina, paginar
 from .forms import EditarPerfilForm
@@ -40,13 +40,22 @@ def _conteudo_do_perfil(usuario, visitante, aba, pagina):
         exibidos = todos.filter(original__isnull=True).exclude(imagem="")
     else:
         exibidos = todos.filter(original__isnull=True)
+    perfil = perfil_do(usuario)
+    post_fixado = perfil.post_fixado if perfil else None
+    if post_fixado and post_fixado.autor_id == usuario.pk and aba == "publicacoes":
+        exibidos = exibidos.exclude(pk=post_fixado.pk)
     exibidos = exibidos.order_by("-criado_em", "-pk")
     pagina_objeto = paginar(exibidos, pagina)
+    posts = posts_para_exibir(
+        pagina_objeto.object_list, visitante, incluir_comentarios=False
+    )
+    post_fixado_exibicao = None
+    if post_fixado and post_fixado.autor_id == usuario.pk and aba == "publicacoes" and pagina_objeto.number == 1:
+        post_fixado_exibicao = posts_para_exibir(Post.objects.filter(pk=post_fixado.pk), visitante, incluir_comentarios=False)[0]
     return {
         "aba": aba,
-        "posts": posts_para_exibir(
-            pagina_objeto.object_list, visitante, incluir_comentarios=False
-        ),
+        "posts": posts,
+        "post_fixado": post_fixado_exibicao,
         "pagina_objeto": pagina_objeto,
         "total_posts": totais["publicacoes"] + totais["repostados"],
         "total_publicacoes": totais["publicacoes"],
@@ -82,16 +91,36 @@ def perfil_publico_view(request, username):
     if usuario.pk == request.user.pk:
         return redirect("profile:perfil")
     perfil = perfil_do(usuario)
+    bloqueado = usuario_bloqueado_entre(request.user, usuario)
     contexto = {
         "perfil_usuario": usuario,
         "perfil": perfil,
-        **_conteudo_do_perfil(
-            usuario, request.user, request.GET.get("aba"), request.GET.get("page")
-        ),
+        "bloqueado": bloqueado,
         "seguindo": perfil.seguindo.count() if perfil else 0,
         "seguidores": usuario.seguidores.count(),
         "parametros_url": parametros_sem_pagina(request),
     }
+    if bloqueado:
+        contexto.update(
+            {
+                "aba": "publicacoes",
+                "posts": [],
+                "post_fixado": None,
+                "pagina_objeto": None,
+                "total_posts": 0,
+                "total_publicacoes": 0,
+                "total_repostados": 0,
+                "total_midia": 0,
+                "total_salvos": 0,
+                "pode_ver_salvos": False,
+            }
+        )
+    else:
+        contexto.update(
+            _conteudo_do_perfil(
+                usuario, request.user, request.GET.get("aba"), request.GET.get("page")
+            )
+        )
     return render(request, "perfil_publico.html", contexto)
 
 
@@ -99,7 +128,14 @@ def perfil_publico_view(request, username):
 @require_POST
 def seguir_usuario(request, usuario_id):
     alvo = get_object_or_404(User, pk=usuario_id)
+    destino = request.POST.get("next") or request.META.get("HTTP_REFERER", "")
+    if not url_has_allowed_host_and_scheme(
+        destino, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        destino = reverse("home")
     if alvo != request.user:
+        if usuario_bloqueado_entre(request.user, alvo):
+            return redirect(destino)
         perfil, _ = Perfil.objects.get_or_create(usuario=request.user)
         if perfil.seguindo.filter(pk=alvo.pk).exists():
             perfil.seguindo.remove(alvo)
@@ -107,11 +143,6 @@ def seguir_usuario(request, usuario_id):
         else:
             perfil.seguindo.add(alvo)
             notificar(alvo, "seguidor", request.user)
-    destino = request.POST.get("next") or request.META.get("HTTP_REFERER", "")
-    if not url_has_allowed_host_and_scheme(
-        destino, allowed_hosts={request.get_host()}, require_https=request.is_secure()
-    ):
-        destino = reverse("home")
     return redirect(destino)
 
 

@@ -7,6 +7,7 @@ from configuracoes.models import PreferenciasUsuario
 from mensagens.context_processors import mensagens_nao_lidas
 from mensagens.models import Conversa, Mensagem
 from mensagens.services import AVISO_MENSAGEM_BLOQUEADA
+from posts.models import UsuarioBloqueado
 from profile.models import Perfil
 
 User = get_user_model()
@@ -95,6 +96,18 @@ class CriarConversaTests(TestCase):
         )
 
         self.assertRedirects(response, reverse("mensagens:lista"))
+        self.assertFalse(Conversa.objects.exists())
+
+    def test_bloqueio_impede_iniciar_conversa(self):
+        UsuarioBloqueado.objects.create(usuario=self.maria, bloqueado=self.caua)
+        self.client.force_login(self.caua)
+
+        response = self.client.post(reverse("mensagens:criar"), {"usuario_id": self.maria.pk})
+
+        self.assertRedirects(
+            response,
+            reverse("profile:perfil_publico", args=[self.maria.username]),
+        )
         self.assertFalse(Conversa.objects.exists())
 
     def test_abrir_nova_conversa_nao_cria_perfil(self):
@@ -197,6 +210,19 @@ class ConversaTests(TestCase):
         self.assertContains(resposta, 'class="global-toast global-toast--error"')
         self.assertNotContains(resposta, 'class="dm-composer"')
         self.assertContains(resposta, "Oi, Maria!")
+
+    def test_bloqueio_atual_bloqueia_envio_em_conversa_existente(self):
+        UsuarioBloqueado.objects.create(usuario=self.maria, bloqueado=self.caua)
+        self.client.force_login(self.caua)
+
+        resposta = self.client.post(
+            reverse("mensagens:detalhe", args=[self.conversa.pk]),
+            {"conteudo": "Mensagem bloqueada"},
+            follow=True,
+        )
+
+        self.assertFalse(Mensagem.objects.filter(conteudo="Mensagem bloqueada").exists())
+        self.assertContains(resposta, AVISO_MENSAGEM_BLOQUEADA)
 
     def test_permissao_seguindo_e_reavaliada_em_cada_envio(self):
         preferencias, _ = PreferenciasUsuario.objects.get_or_create(usuario=self.maria)
