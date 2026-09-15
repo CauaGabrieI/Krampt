@@ -35,18 +35,10 @@ body { background: var(--background); color: var(--text); }
 /* Painel central compartilhado pela home, perfil e caixa de mensagens. */
 .home-feed-page .app-shell,
 .profile-page .app-shell {
-  grid-template-columns: minmax(0, 940px);
-  justify-content: center;
+  grid-template-columns: minmax(250px, 1fr) minmax(0, 940px) minmax(230px, .85fr);
   width: 100%;
-  max-width: 988px;
+  max-width: 1720px;
   min-height: 0;
-  padding: 16px 24px;
-}
-.home-feed-page .left-rail,
-.home-feed-page .right-rail,
-.profile-page .left-rail,
-.profile-page .right-rail {
-  display: none;
 }
 .home-feed-page .feed,
 .profile-page .profile-feed {
@@ -167,8 +159,6 @@ textarea::placeholder { color: var(--muted); }
 }
 
 @media (max-width: 720px) {
-  .home-feed-page .app-shell,
-  .profile-page .app-shell { padding: 0; }
   .home-feed-page .feed,
   .profile-page .profile-feed {
     border-right: 0;
@@ -181,4 +171,9 @@ textarea::placeholder { color: var(--muted); }
   .create-post,
   .post { padding-right: 18px; padding-left: 18px; }
   .rail-card { padding: 18px; }
+}
+
+@media (min-width: 721px) and (max-width: 1280px) {
+  .home-feed-page .app-shell,
+  .profile-page .app-shell { max-width: 940px; }
 }
