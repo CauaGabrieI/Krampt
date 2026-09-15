@@ -88,6 +88,25 @@
 }
 .profile-action:hover { border-color: var(--text); background: var(--surface-raised); }
 .profile-summary-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.profile-summary-actions .follow-button,
+.profile-message-button { min-height: 36px; border-radius: 8px; }
+.profile-message-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, color .15s;
+}
+.profile-message-button:hover { border-color: var(--primary); background: var(--accent-tint); color: var(--primary-light); }
+.profile-message-button .material-symbols-outlined { font-size: 18px; }
 .profile-summary h2 { margin: 15px 0 2px; font-size: 22px; letter-spacing: -.035em; }
 .profile-handle { margin: 0; color: var(--subtle); font-size: 13px; }
 .profile-bio { margin: 14px 0 0; color: var(--text); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
@@ -119,5 +138,6 @@
   .profile-avatar { width: 96px; height: 96px; font-size: 34px; }
   .profile-summary-actions { gap: 5px; }
   .profile-summary-actions .profile-action { padding: 7px 11px; }
+  .profile-message-button { padding: 7px 10px; }
   .profile-tab { gap: 4px; font-size: 12px; }
 }

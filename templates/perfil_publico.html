@@ -3,7 +3,7 @@
 {% block title %}{{ perfil_usuario.first_name|default:perfil_usuario.username }} | Krampt{% endblock %}
 {% block body_class %}profile-page{% endblock %}
 {% block extra_head %}
-  <link rel="stylesheet" href="{% static 'css/perfil.css' %}?v=profile-tabs-1">
+  <link rel="stylesheet" href="{% static 'css/perfil.css' %}?v=profile-message-1">
 {% endblock %}
 {% block content %}
   {% include "includes/site_header.html" %}
@@ -36,6 +36,16 @@
             {% include "includes/avatar.html" with usuario=perfil_usuario avatar_class="profile-avatar" %}
             <div class="profile-summary-actions">
               {% include "includes/follow_button.html" with usuario=perfil_usuario %}
+              {% if request.user != perfil_usuario %}
+                <form method="post" action="{% url 'mensagens:criar' %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="usuario_id" value="{{ perfil_usuario.pk }}">
+                  <button class="profile-message-button" type="submit">
+                    <span class="material-symbols-outlined" aria-hidden="true">chat</span>
+                    Mensagem
+                  </button>
+                </form>
+              {% endif %}
             </div>
           </div>
           <h2>{{ perfil_usuario.first_name|default:perfil_usuario.username }}</h2>

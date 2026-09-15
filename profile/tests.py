@@ -8,6 +8,7 @@ from django.urls import reverse
 from PIL import Image
 
 from posts.models import Post
+from mensagens.models import Conversa
 from .models import Perfil
 
 
@@ -133,6 +134,41 @@ class SeguirUsuarioTests(TestCase):
 
         self.assertContains(pagina, ">1</strong> seguindo")
         self.assertContains(pagina, ">0</strong> seguidores")
+
+    def test_perfil_de_outro_usuario_mostra_botao_de_mensagem(self):
+        self.client.force_login(self.caua)
+
+        pagina = self.client.get(
+            reverse("profile:perfil_publico", args=[self.ana.username])
+        )
+
+        self.assertContains(pagina, 'class="profile-message-button"')
+        self.assertContains(pagina, f'action="{reverse("mensagens:criar")}"')
+        self.assertContains(pagina, f'name="usuario_id" value="{self.ana.pk}"')
+        self.assertContains(pagina, ">chat</span>")
+
+    def test_meu_perfil_nao_mostra_botao_de_mensagem(self):
+        self.client.force_login(self.caua)
+
+        pagina = self.client.get(reverse("profile:perfil"))
+
+        self.assertNotContains(pagina, 'class="profile-message-button"')
+
+    def test_botao_do_perfil_abre_a_conversa_correta_e_reutiliza_existente(self):
+        self.client.force_login(self.caua)
+        conversa = Conversa.objects.create(
+            chave=f"{min(self.caua.pk, self.ana.pk)}:{max(self.caua.pk, self.ana.pk)}"
+        )
+        conversa.participantes.add(self.caua, self.ana)
+
+        resposta = self.client.post(
+            reverse("mensagens:criar"), {"usuario_id": self.ana.pk}
+        )
+
+        self.assertRedirects(
+            resposta, reverse("mensagens:detalhe", args=[conversa.pk])
+        )
+        self.assertEqual(Conversa.objects.count(), 1)
 
 
 def foto_de_teste(nome="foto.png", cor="purple"):
