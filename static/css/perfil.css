@@ -1,6 +1,8 @@
 .header-user.is-current { color: var(--primary-light); }
 
 .profile-page {
+  display: flex;
+  flex-direction: column;
   height: var(--viewport-height);
   overflow: hidden;
 }
