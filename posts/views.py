@@ -27,6 +27,7 @@ from .services import (
     desocultar_post,
     desbloquear_usuario,
     dessilenciar_usuario,
+    filtrar_posts_acessiveis,
     filtrar_posts_visiveis,
     posts_para_exibir,
 )
@@ -62,7 +63,7 @@ def _erro_comentario(request, formulario, post_id):
 @login_required
 def detalhe_post(request, post_id):
     post = get_object_or_404(
-        filtrar_posts_visiveis(Post.objects.filter(original__isnull=True), request.user),
+        filtrar_posts_acessiveis(Post.objects.filter(original__isnull=True), request.user),
         pk=post_id,
     )
     entrada = posts_para_exibir(Post.objects.filter(pk=post.pk), request.user)[0]
@@ -148,7 +149,7 @@ def _voltar_para_posts(request, post_id=None):
 @require_POST
 def curtir_post(request, post_id):
     post = get_object_or_404(
-        filtrar_posts_visiveis(Post.objects.filter(original__isnull=True), request.user),
+        filtrar_posts_acessiveis(Post.objects.filter(original__isnull=True), request.user),
         pk=post_id,
     )
     curtida, criada = Post.curtidas.through.objects.get_or_create(
@@ -173,7 +174,7 @@ def curtir_post(request, post_id):
 @require_POST
 def salvar_post(request, post_id):
     post = get_object_or_404(
-        filtrar_posts_visiveis(Post.objects.filter(original__isnull=True), request.user),
+        filtrar_posts_acessiveis(Post.objects.filter(original__isnull=True), request.user),
         pk=post_id,
     )
     salvo = post.salvos_por.filter(pk=request.user.pk).exists()
@@ -353,7 +354,7 @@ def denunciar_post(request, post_id):
 @require_POST
 def republicar_post(request, post_id):
     post = get_object_or_404(
-        filtrar_posts_visiveis(Post.objects.filter(original__isnull=True), request.user),
+        filtrar_posts_acessiveis(Post.objects.filter(original__isnull=True), request.user),
         pk=post_id,
     )
     republicacao, criada = Post.objects.get_or_create(
@@ -378,7 +379,7 @@ def republicar_post(request, post_id):
 @require_POST
 def comentar_post(request, post_id):
     post = get_object_or_404(
-        filtrar_posts_visiveis(Post.objects.filter(original__isnull=True), request.user),
+        filtrar_posts_acessiveis(Post.objects.filter(original__isnull=True), request.user),
         pk=post_id,
     )
     formulario = ComentarioForm(request.POST, request.FILES)
@@ -404,7 +405,7 @@ def comentar_post(request, post_id):
 def curtir_comentario(request, comentario_id):
     comentario = get_object_or_404(
         Comentario.objects.filter(
-            post__in=filtrar_posts_visiveis(Post.objects.filter(original__isnull=True), request.user)
+            post__in=filtrar_posts_acessiveis(Post.objects.filter(original__isnull=True), request.user)
         ),
         pk=comentario_id,
     )
@@ -455,7 +456,7 @@ def excluir_comentario(request, comentario_id):
 def responder_comentario(request, comentario_id):
     comentario = get_object_or_404(
         Comentario.objects.filter(
-            post__in=filtrar_posts_visiveis(Post.objects.filter(original__isnull=True), request.user)
+            post__in=filtrar_posts_acessiveis(Post.objects.filter(original__isnull=True), request.user)
         ),
         pk=comentario_id,
     )

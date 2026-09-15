@@ -3,9 +3,9 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
-from django.db.models import Count, Q
+from django.db.models import Count, Exists, OuterRef, Q
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
-from posts.models import Post, ImagemPost
+from posts.models import Post, ImagemPost, UsuarioBloqueado
 from posts.services import posts_para_exibir, usuario_bloqueado_entre
 from notificacoes.services import notificar, remover_notificacao
 from krampt.paginacao import parametros_sem_pagina, paginar
@@ -122,6 +122,50 @@ def perfil_publico_view(request, username):
             )
         )
     return render(request, "perfil_publico.html", contexto)
+
+
+def _queryset_relacoes(usuario, tipo, visitante):
+    if tipo == "seguindo":
+        perfil = perfil_do(usuario)
+        queryset = perfil.seguindo.all() if perfil else User.objects.none()
+    else:
+        queryset = User.objects.filter(perfil__seguindo=usuario)
+
+    bloqueio_direto = UsuarioBloqueado.objects.filter(
+        usuario=visitante, bloqueado_id=OuterRef("pk")
+    )
+    bloqueio_reverso = UsuarioBloqueado.objects.filter(
+        usuario_id=OuterRef("pk"), bloqueado=visitante
+    )
+    return (
+        queryset.select_related("perfil")
+        .annotate(
+            bloqueado_com_visitante=Exists(bloqueio_direto) | Exists(bloqueio_reverso),
+        )
+        .order_by("username", "pk")
+    )
+
+
+@login_required
+@require_GET
+def relacoes_perfil_view(request, username, tipo):
+    usuario = get_object_or_404(User, username=username)
+    bloqueado = usuario.pk != request.user.pk and usuario_bloqueado_entre(request.user, usuario)
+    pagina_objeto = None
+    if not bloqueado:
+        pagina_objeto = paginar(_queryset_relacoes(usuario, tipo, request.user), request.GET.get("page"), por_pagina=30)
+    return render(
+        request,
+        "perfil_relacoes.html",
+        {
+            "dono_do_perfil": usuario,
+            "tipo": tipo,
+            "titulo": "Seguindo" if tipo == "seguindo" else "Seguidores",
+            "bloqueado": bloqueado,
+            "pagina_objeto": pagina_objeto,
+            "parametros_url": parametros_sem_pagina(request),
+        },
+    )
 
 
 @login_required

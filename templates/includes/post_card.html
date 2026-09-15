@@ -61,14 +61,16 @@
                 Excluir post
               </button>
             {% else %}
-              <form method="post" action="{% url 'posts:ignorar' original.id %}" data-async-action data-action-type="hide-post">
-                {% csrf_token %}
-                <input type="hidden" name="return_path" value="{{ request.get_full_path }}">
-                <button type="submit" role="menuitem">
-                  <span class="material-symbols-outlined" aria-hidden="true">visibility_off</span>
-                  Não tenho interesse neste post
-                </button>
-              </form>
+              {% if allow_not_interested %}
+                <form method="post" action="{% url 'posts:ignorar' original.id %}" data-async-action data-action-type="hide-post">
+                  {% csrf_token %}
+                  <input type="hidden" name="return_path" value="{{ request.get_full_path }}">
+                  <button type="submit" role="menuitem">
+                    <span class="material-symbols-outlined" aria-hidden="true">visibility_off</span>
+                    Não tenho interesse neste post
+                  </button>
+                </form>
+              {% endif %}
               <form method="post" action="{% url 'profile:seguir' original.autor.pk %}">
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{{ request.get_full_path }}">

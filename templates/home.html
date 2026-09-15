@@ -50,7 +50,7 @@
 
       <section class="post-list" aria-label="Publicações">
         {% for post in posts %}
-          {% include "includes/post_card.html" with return_to="home" mostrar_comentarios=False %}
+          {% include "includes/post_card.html" with return_to="home" mostrar_comentarios=False allow_not_interested=True %}
         {% empty %}
           <div class="empty-state">
             <span class="empty-state-icon material-symbols-outlined" aria-hidden="true">edit_square</span>

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ titulo }} | Krampt{% endblock %}
+{% block body_class %}profile-page{% endblock %}
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/perfil.css' %}?v=profile-relations-1">
+{% endblock %}
+{% block content %}
+  {% include "includes/site_header.html" %}
+
+  <div class="app-shell">
+    {% include "includes/explore_rail.html" with split_rail=True %}
+
+    <main class="feed profile-feed" id="perfil-relacoes">
+      <div class="feed-heading profile-page-heading">
+        <a class="profile-back-link" href="{% if dono_do_perfil == request.user %}{% url 'profile:perfil' %}{% else %}{% url 'profile:perfil_publico' dono_do_perfil.username %}{% endif %}" aria-label="Voltar ao perfil">
+          <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+        </a>
+        <div class="profile-page-heading-text">
+          <h1>{{ titulo }}</h1>
+          <p>@{{ dono_do_perfil.username }}</p>
+        </div>
+      </div>
+
+      {% if bloqueado %}
+        <div class="empty-state">
+          <span class="empty-state-icon material-symbols-outlined" aria-hidden="true">block</span>
+          <h2>Perfil indisponível</h2>
+          <p>Existe um bloqueio entre vocês, então esta lista não aparece.</p>
+        </div>
+      {% else %}
+        <section class="profile-relations" aria-label="{{ titulo }}">
+          {% if pagina_objeto.object_list %}
+            <ul class="profile-relation-list">
+              {% for pessoa in pagina_objeto.object_list %}
+                <li class="profile-relation-row">
+                  <a class="profile-relation-user" href="{% url 'profile:perfil_publico' pessoa.username %}">
+                    {% include "includes/avatar.html" with usuario=pessoa avatar_class="avatar-small" %}
+                    <span class="profile-relation-text">
+                      <strong>{{ pessoa.first_name|default:pessoa.username }}</strong>
+                      <span>@{{ pessoa.username }}</span>
+                      {% if pessoa.perfil.biografia %}<small>{{ pessoa.perfil.biografia }}</small>{% endif %}
+                    </span>
+                  </a>
+                  {% if pessoa.pk != request.user.pk and not pessoa.bloqueado_com_visitante %}
+                    {% include "includes/follow_button.html" with usuario=pessoa %}
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <div class="empty-state">
+              <span class="empty-state-icon material-symbols-outlined" aria-hidden="true">group</span>
+              <h2>Nenhum usuário por aqui</h2>
+              <p>Quando houver relações neste perfil, elas aparecerão aqui.</p>
+            </div>
+          {% endif %}
+        </section>
+        {% include "includes/paginacao.html" %}
+      {% endif %}
+    </main>
+    {% include "includes/hashtags_rail.html" %}
+  </div>
+{% endblock %}
+{% block scripts %}
+  <script src="{% static 'js/header_search.js' %}" defer></script>
+  <script src="{% static 'js/account_menu.js' %}" defer></script>
+{% endblock %}

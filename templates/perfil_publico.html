@@ -57,7 +57,7 @@
             <span class="material-symbols-outlined" aria-hidden="true">calendar_month</span>
             Entrou em {{ perfil_usuario.date_joined|date:"F \d\e Y" }}
           </p>
-          <p class="profile-count"><strong>{{ total_publicacoes }}</strong> {% if total_publicacoes == 1 %}publicação{% else %}publicações{% endif %} · <strong>{{ seguindo }}</strong> seguindo · <strong>{{ seguidores }}</strong> seguidores</p>
+          <p class="profile-count"><strong>{{ total_publicacoes }}</strong> {% if total_publicacoes == 1 %}publicação{% else %}publicações{% endif %} · <a class="profile-count-link" href="{% url 'profile:seguindo' perfil_usuario.username %}"><strong>{{ seguindo }}</strong> seguindo</a> · <a class="profile-count-link" href="{% url 'profile:seguidores' perfil_usuario.username %}"><strong>{{ seguidores }}</strong> seguidores</a></p>
         </section>
       {% endwith %}
 
@@ -77,13 +77,13 @@
                 <span class="material-symbols-outlined" aria-hidden="true">keep</span>
                 Post fixado
               </div>
-              {% include "includes/post_card.html" with post=post_fixado return_to="perfil" mostrar_comentarios=False %}
+              {% include "includes/post_card.html" with post=post_fixado return_to="perfil" mostrar_comentarios=False allow_not_interested=False %}
             {% endif %}
             {% for post in posts %}
               {% if aba == 'midia' %}
                 {% include "includes/profile_media.html" %}
               {% else %}
-                {% include "includes/post_card.html" with return_to="perfil" mostrar_comentarios=False %}
+                {% include "includes/post_card.html" with return_to="perfil" mostrar_comentarios=False allow_not_interested=False %}
               {% endif %}
             {% endfor %}
           {% else %}

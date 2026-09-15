@@ -49,7 +49,7 @@
             {% if posts %}
               <div class="post-list">
                 {% for post in posts %}
-                  {% include "includes/post_card.html" with return_to="buscar" mostrar_comentarios=False %}
+                  {% include "includes/post_card.html" with return_to="buscar" mostrar_comentarios=False allow_not_interested=True %}
                 {% endfor %}
               </div>
               {% include "includes/paginacao.html" %}

@@ -164,15 +164,9 @@ def usuario_bloqueado_entre(usuario, outro):
     ).exists()
 
 
-def filtrar_posts_visiveis(queryset, usuario):
+def filtrar_posts_acessiveis(queryset, usuario):
     if not usuario.is_authenticated:
         return queryset
-    posts_ignorados = PostSemInteresse.objects.filter(usuario=usuario).values_list(
-        "post_id", flat=True
-    )
-    silenciados = UsuarioSilenciado.objects.filter(usuario=usuario).values_list(
-        "silenciado_id", flat=True
-    )
     bloqueios = UsuarioBloqueado.objects.filter(usuario=usuario).values_list(
         "bloqueado_id", flat=True
     )
@@ -180,14 +174,22 @@ def filtrar_posts_visiveis(queryset, usuario):
         "usuario_id", flat=True
     )
     return (
-        queryset.exclude(pk__in=posts_ignorados)
-        .exclude(autor_id__in=silenciados)
-        .exclude(autor_id__in=bloqueios)
+        queryset.exclude(autor_id__in=bloqueios)
         .exclude(autor_id__in=bloqueadores)
-        .exclude(original_id__in=posts_ignorados)
-        .exclude(original__autor_id__in=silenciados)
         .exclude(original__autor_id__in=bloqueios)
         .exclude(original__autor_id__in=bloqueadores)
+    )
+
+
+def filtrar_posts_visiveis(queryset, usuario):
+    queryset = filtrar_posts_acessiveis(queryset, usuario)
+    if not usuario.is_authenticated:
+        return queryset
+    posts_ignorados = PostSemInteresse.objects.filter(usuario=usuario).values_list(
+        "post_id", flat=True
+    )
+    return queryset.exclude(pk__in=posts_ignorados).exclude(
+        original_id__in=posts_ignorados
     )
 
 

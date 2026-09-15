@@ -13,7 +13,7 @@
         <h1>Discussão</h1>
       </div>
       {% with original=post.post_original %}
-        {% include "includes/post_card.html" with return_to="post" mostrar_comentarios=True %}
+        {% include "includes/post_card.html" with return_to="post" mostrar_comentarios=True allow_not_interested=False %}
         {% include "includes/post_comments.html" with return_to="post" %}
       {% endwith %}
     </main>

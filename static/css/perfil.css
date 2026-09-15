@@ -153,3 +153,73 @@
   .profile-message-button { padding: 7px 10px; }
   .profile-tab { gap: 4px; font-size: 12px; }
 }
+
+.profile-count-link {
+  color: inherit;
+  text-decoration: none;
+}
+.profile-count-link:hover,
+.profile-count-link:focus-visible {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--primary);
+  text-underline-offset: 3px;
+}
+.profile-relations {
+  border-bottom: 1px solid var(--border);
+}
+.profile-relation-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.profile-relation-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.profile-relation-row:last-child { border-bottom: 0; }
+.profile-relation-user {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 12px;
+  color: var(--text);
+}
+.profile-relation-user:hover .profile-relation-text strong,
+.profile-relation-user:focus-visible .profile-relation-text strong {
+  text-decoration: underline;
+  text-decoration-color: var(--primary);
+  text-underline-offset: 3px;
+}
+.profile-relation-text {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.profile-relation-text strong,
+.profile-relation-text span,
+.profile-relation-text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-relation-text span,
+.profile-relation-text small {
+  color: var(--subtle);
+  font-size: 13px;
+}
+.profile-relation-text small { max-width: 42ch; }
+.profile-relation-row .follow-button {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 560px) {
+  .profile-relation-row { padding: 14px 16px; gap: 10px; }
+  .profile-relation-text small { max-width: 24ch; }
+}
