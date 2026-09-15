@@ -55,7 +55,7 @@ class ContaForm(forms.Form):
         return email_alterado
 
 
-class PrivacidadeForm(forms.ModelForm):
+class MensagensForm(forms.ModelForm):
     class Meta:
         model = PreferenciasUsuario
         fields = ("permitir_novas_conversas", "mensagens_de")

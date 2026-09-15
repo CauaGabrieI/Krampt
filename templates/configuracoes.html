@@ -70,9 +70,12 @@
           </div>
 
         {% elif secao == "privacidade" %}
-          <div class="settings-section-heading"><h2>Privacidade</h2><p>Controle quem pode iniciar conversas com você.</p></div>
+          <div class="settings-section-heading"><h2>Privacidade</h2><p>Controle a visibilidade da sua conta e do seu perfil.</p></div>
+          <div class="settings-coming"><strong>Conta privada, descoberta por e-mail e status de atividade</strong><span>Em breve — essas opções dependem de regras de visibilidade e pedidos de seguimento que ainda não existem.</span></div>
+
+        {% elif secao == "mensagens" %}
+          <div class="settings-section-heading"><h2>Mensagens</h2><p>Controle quem pode iniciar e continuar conversas privadas com você.</p></div>
           <form class="settings-form" method="post">{% csrf_token %}{% include "includes/settings_form_fields.html" %}<button class="primary-button" type="submit">Salvar alterações</button></form>
-          <div class="settings-coming"><strong>Conta privada e descoberta por e-mail</strong><span>Em breve — dependem de pedidos de seguimento e busca privada.</span></div>
 
         {% elif secao == "notificacoes" %}
           <div class="settings-section-heading"><h2>Notificações</h2><p>Escolha quais atividades criam alertas dentro do Krampt.</p></div>

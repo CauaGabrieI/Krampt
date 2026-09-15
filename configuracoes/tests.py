@@ -36,7 +36,7 @@ class ConfiguracoesTests(TestCase):
         self.assertEqual(resposta.status_code, 302)
 
     def test_todas_as_secoes_abrem(self):
-        for secao in ("conta", "privacidade", "notificacoes", "seguranca", "aparencia", "conteudo", "dados"):
+        for secao in ("conta", "privacidade", "mensagens", "notificacoes", "seguranca", "aparencia", "conteudo", "dados"):
             with self.subTest(secao=secao):
                 resposta = self.client.get(reverse("configuracoes:secao", args=[secao]))
                 self.assertEqual(resposta.status_code, 200)
@@ -123,13 +123,17 @@ class ConfiguracoesTests(TestCase):
         )
         self.assertEqual(self.client.get(reverse("profile:editar")).status_code, 200)
 
-    def test_aba_mensagens_nao_existe_nas_configuracoes(self):
-        resposta = self.client.get(reverse("configuracoes:inicio"))
-        self.assertNotContains(resposta, "/configuracoes/mensagens/")
-        self.assertEqual(
-            self.client.get(reverse("configuracoes:secao", args=["mensagens"])).status_code,
-            404,
-        )
+    def test_abas_privacidade_e_mensagens_existem_sem_opcoes_duplicadas(self):
+        conta = self.client.get(reverse("configuracoes:inicio"))
+        privacidade = self.client.get(reverse("configuracoes:secao", args=["privacidade"]))
+        mensagens = self.client.get(reverse("configuracoes:secao", args=["mensagens"]))
+
+        self.assertContains(conta, reverse("configuracoes:secao", args=["privacidade"]))
+        self.assertContains(conta, reverse("configuracoes:secao", args=["mensagens"]))
+        self.assertNotContains(privacidade, 'name="permitir_novas_conversas"')
+        self.assertNotContains(privacidade, 'name="mensagens_de"')
+        self.assertContains(mensagens, 'name="permitir_novas_conversas"')
+        self.assertContains(mensagens, 'name="mensagens_de"')
 
     def test_seguranca_aponta_para_fluxo_existente_de_senha(self):
         resposta = self.client.get(reverse("configuracoes:secao", args=["seguranca"]))
@@ -192,8 +196,8 @@ class ConfiguracoesTests(TestCase):
         self.assertTrue(Session.objects.filter(session_key=chave_atual).exists())
         self.assertFalse(Session.objects.filter(session_key=outra.session_key).exists())
 
-    def test_preferencias_de_privacidade_persistem_e_bloqueiam_nova_conversa(self):
-        url = reverse("configuracoes:secao", args=["privacidade"])
+    def test_preferencias_de_mensagens_persistem_e_bloqueiam_nova_conversa(self):
+        url = reverse("configuracoes:secao", args=["mensagens"])
         self.client.post(url, {"mensagens_de": "ninguem"})
         preferencias = PreferenciasUsuario.objects.get(usuario=self.caua)
         self.assertFalse(preferencias.permitir_novas_conversas)
@@ -201,6 +205,22 @@ class ConfiguracoesTests(TestCase):
         resposta = self.client.post(reverse("mensagens:criar"), {"usuario_id": self.caua.pk})
         self.assertRedirects(resposta, reverse("profile:perfil_publico", args=[self.caua.username]))
         self.assertFalse(Conversa.objects.exists())
+
+    def test_preferencias_salvas_na_aba_mensagens_persistem(self):
+        url = reverse("configuracoes:secao", args=["mensagens"])
+
+        resposta = self.client.post(
+            url,
+            {"permitir_novas_conversas": "on", "mensagens_de": "seguindo"},
+        )
+
+        self.assertRedirects(resposta, url)
+        preferencias = PreferenciasUsuario.objects.get(usuario=self.caua)
+        self.assertTrue(preferencias.permitir_novas_conversas)
+        self.assertEqual(
+            preferencias.mensagens_de,
+            PreferenciasUsuario.PermissaoMensagem.SEGUINDO,
+        )
 
     def test_preferencia_de_notificacao_impede_criacao(self):
         preferencias = self.caua.preferencias

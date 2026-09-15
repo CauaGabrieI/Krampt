@@ -23,8 +23,8 @@ from .forms import (
     AparenciaForm,
     ContaForm,
     ExcluirContaForm,
+    MensagensForm,
     NotificacoesForm,
-    PrivacidadeForm,
 )
 from .models import PreferenciasUsuario
 
@@ -32,6 +32,7 @@ from .models import PreferenciasUsuario
 SECOES = (
     ("conta", "Conta", "manage_accounts"),
     ("privacidade", "Privacidade", "lock"),
+    ("mensagens", "Mensagens", "chat"),
     ("notificacoes", "Notificações", "notifications"),
     ("seguranca", "Segurança", "shield"),
     ("aparencia", "Aparência", "palette"),
@@ -39,7 +40,7 @@ SECOES = (
     ("dados", "Dados e armazenamento", "database"),
 )
 FORMULARIOS_PREFERENCIAS = {
-    "privacidade": PrivacidadeForm,
+    "mensagens": MensagensForm,
     "notificacoes": NotificacoesForm,
     "aparencia": AparenciaForm,
 }
