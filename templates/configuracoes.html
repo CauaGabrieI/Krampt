@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Configurações | Krampt{% endblock %}
+{% block body_class %}settings-page{% endblock %}
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/configuracoes.css' %}?v=1">
+{% endblock %}
+{% block content %}
+  {% include "includes/site_header.html" %}
+  <main class="settings-shell">
+    <header class="settings-heading">
+      <div>
+        <p class="eyebrow">Sua conta</p>
+        <h1>Configurações</h1>
+      </div>
+      <a class="settings-close" href="{% url 'home' %}" aria-label="Fechar configurações">
+        <span class="material-symbols-outlined" aria-hidden="true">close</span>
+      </a>
+    </header>
+
+    <div class="settings-layout">
+      <nav class="settings-nav" aria-label="Categorias de configurações">
+        {% for slug, titulo, icone in secoes %}
+          <a class="{% if secao == slug %}is-active{% endif %}" href="{% url 'configuracoes:secao' slug %}"{% if secao == slug %} aria-current="page"{% endif %}>
+            <span class="material-symbols-outlined" aria-hidden="true">{{ icone }}</span>
+            <span>{{ titulo }}</span>
+          </a>
+        {% endfor %}
+      </nav>
+
+      <section class="settings-content">
+        {% for mensagem in messages %}
+          <p class="settings-feedback settings-feedback--{{ mensagem.tags|default:'info' }}" role="status">{{ mensagem }}</p>
+        {% endfor %}
+
+        {% if secao == "conta" %}
+          <div class="settings-section-heading">
+            <h2>Conta</h2>
+            <p>Atualize sua identidade e as informações usadas para entrar no Krampt.</p>
+          </div>
+          <div class="settings-status">
+            <span class="material-symbols-outlined" aria-hidden="true">{% if email_verificado %}verified{% else %}warning{% endif %}</span>
+            <span>E-mail {% if email_verificado %}verificado{% else %}ainda não verificado{% endif %}</span>
+          </div>
+          <form class="settings-form" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="acao" value="salvar">
+            {% include "includes/settings_form_fields.html" %}
+            <button class="primary-button" type="submit">Salvar alterações</button>
+          </form>
+          <div class="settings-group">
+            <h3>Senha</h3>
+            <p>Use a seção Segurança para trocar sua senha com os validadores protegidos do Django.</p>
+            <a class="settings-secondary-button" href="{% url 'configuracoes:secao' 'seguranca' %}">Alterar senha</a>
+          </div>
+          <div class="settings-danger">
+            <h3>Zona de risco</h3>
+            <p>Digite seu @username para desativar. Para excluir definitivamente, informe também sua senha atual.</p>
+            <div class="settings-danger-grid">
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="acao" value="desativar">
+                <label for="deactivate-confirm">Confirmar usuário</label>
+                <input id="deactivate-confirm" name="confirmacao" required autocomplete="off">
+                <button class="settings-danger-button" type="submit">Desativar conta</button>
+              </form>
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="acao" value="excluir_conta">
+                <label for="delete-confirm">Confirmar usuário</label>
+                <input id="delete-confirm" name="confirmacao" required autocomplete="off">
+                <label for="delete-password">Senha atual</label>
+                <input id="delete-password" type="password" name="senha" required autocomplete="current-password">
+                <button class="settings-danger-button" type="submit">Excluir conta definitivamente</button>
+              </form>
+            </div>
+          </div>
+
+        {% elif secao == "perfil" %}
+          <div class="settings-section-heading"><h2>Perfil</h2><p>Edite as informações públicas e as imagens do seu perfil.</p></div>
+          <div class="settings-profile-preview">
+            {% include "includes/avatar.html" with usuario=request.user %}
+            <div><strong>{{ request.user.first_name|default:request.user.username }}</strong><span>@{{ request.user.username }}</span></div>
+          </div>
+          <form class="settings-form" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {% include "includes/settings_form_fields.html" %}
+            <button class="primary-button" type="submit">Salvar perfil</button>
+          </form>
+
+        {% elif secao == "privacidade" %}
+          <div class="settings-section-heading"><h2>Privacidade</h2><p>Controle quem pode iniciar conversas com você.</p></div>
+          <form class="settings-form" method="post">{% csrf_token %}{% include "includes/settings_form_fields.html" %}<button class="primary-button" type="submit">Salvar alterações</button></form>
+          <div class="settings-coming"><strong>Conta privada e descoberta por e-mail</strong><span>Em breve — dependem de pedidos de seguimento e busca privada.</span></div>
+
+        {% elif secao == "mensagens" %}
+          <div class="settings-section-heading"><h2>Mensagens</h2><p>Defina quem pode abrir novas conversas privadas.</p></div>
+          <form class="settings-form" method="post">{% csrf_token %}{% include "includes/settings_form_fields.html" %}<button class="primary-button" type="submit">Salvar alterações</button></form>
+          <div class="settings-coming"><strong>Solicitações, confirmação de leitura, bloqueios e status de digitação</strong><span>Em breve — o chat atual ainda não possui estados separados para esses recursos.</span></div>
+
+        {% elif secao == "notificacoes" %}
+          <div class="settings-section-heading"><h2>Notificações</h2><p>Escolha quais atividades criam alertas dentro do Krampt.</p></div>
+          <form class="settings-form" method="post">{% csrf_token %}{% include "includes/settings_form_fields.html" %}<button class="primary-button" type="submit">Salvar alterações</button></form>
+          <div class="settings-coming"><strong>Notificações por e-mail</strong><span>Em breve — não há envio de atividades por e-mail no sistema atual.</span></div>
+
+        {% elif secao == "seguranca" %}
+          <div class="settings-section-heading"><h2>Segurança</h2><p>Atualize sua senha e controle sessões autenticadas.</p></div>
+          <form class="settings-form" method="post">
+            {% csrf_token %}<input type="hidden" name="acao" value="salvar">
+            {% include "includes/settings_form_fields.html" %}
+            <button class="primary-button" type="submit">Alterar senha</button>
+          </form>
+          <div class="settings-group">
+            <h3>Sessões ativas</h3>
+            <ul class="settings-session-list">
+              {% for sessao in sessoes %}<li><span>{{ sessao.expira_em|date:"d/m/Y H:i" }}</span>{% if sessao.atual %}<strong>Sessão atual</strong>{% else %}<span>Outra sessão</span>{% endif %}</li>{% empty %}<li>Nenhuma sessão encontrada.</li>{% endfor %}
+            </ul>
+            <form method="post">{% csrf_token %}<input type="hidden" name="acao" value="sair_outras_sessoes"><button class="settings-secondary-button" type="submit">Sair de todas as outras sessões</button></form>
+          </div>
+          <div class="settings-coming"><strong>Histórico de login e autenticação em dois fatores</strong><span>Em breve. O Krampt não implementará 2FA caseiro.</span></div>
+
+        {% elif secao == "aparencia" %}
+          <div class="settings-section-heading"><h2>Aparência</h2><p>Personalize tema, leitura, movimento e densidade.</p></div>
+          <form class="settings-form" method="post">{% csrf_token %}{% include "includes/settings_form_fields.html" %}<button class="primary-button" type="submit">Salvar aparência</button></form>
+
+        {% elif secao == "conteudo" %}
+          <div class="settings-section-heading"><h2>Conteúdo</h2><p>Preferências para mídia e filtros do feed.</p></div>
+          <div class="settings-coming"><strong>Autoplay de GIF, palavras, conteúdo sensível e usuários silenciados</strong><span>Em breve — exigem processamento de mídia e uma camada de filtragem que ainda não existem.</span></div>
+
+        {% else %}
+          <div class="settings-section-heading"><h2>Dados e armazenamento</h2><p>Exporte seus dados ou remova conteúdo criado por você.</p></div>
+          <div class="settings-group"><h3>Baixar meus dados</h3><p>Gere um JSON com sua conta, perfil, posts e mensagens enviadas.</p><a class="primary-button" href="{% url 'configuracoes:exportar_dados' %}">Baixar arquivo JSON</a></div>
+          <div class="settings-coming"><strong>Uso de mídia e histórico de busca</strong><span>Em breve — o storage atual não fornece uma métrica local confiável e não há histórico persistido.</span></div>
+          <div class="settings-danger">
+            <h3>Excluir conteúdo</h3>
+            <div class="settings-danger-grid">
+              <form method="post">{% csrf_token %}<input type="hidden" name="acao" value="excluir_posts"><label for="delete-posts">Digite EXCLUIR POSTS</label><input id="delete-posts" name="confirmacao" required autocomplete="off"><button class="settings-danger-button" type="submit">Excluir todas as publicações</button></form>
+              <form method="post">{% csrf_token %}<input type="hidden" name="acao" value="excluir_mensagens"><label for="delete-messages">Digite EXCLUIR MENSAGENS</label><input id="delete-messages" name="confirmacao" required autocomplete="off"><button class="settings-danger-button" type="submit">Excluir mensagens enviadas</button></form>
+            </div>
+          </div>
+        {% endif %}
+      </section>
+    </div>
+  </main>
+{% endblock %}
+{% block scripts %}
+  <script src="{% static 'js/header_search.js' %}" defer></script>
+  <script src="{% static 'js/account_menu.js' %}" defer></script>
+{% endblock %}

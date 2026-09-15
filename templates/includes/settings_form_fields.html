@@ -1,0 +1,20 @@
+{% for field in formulario %}
+  {% if field.field.widget.input_type == "checkbox" %}
+    <label class="settings-toggle" for="{{ field.id_for_label }}">
+      <span>
+        <strong>{{ field.label }}</strong>
+        {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+      </span>
+      {{ field }}
+      <span class="settings-switch" aria-hidden="true"></span>
+    </label>
+  {% else %}
+    <div class="settings-field">
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {% if field.help_text %}<small>{{ field.help_text|safe }}</small>{% endif %}
+    </div>
+  {% endif %}
+  {% for erro in field.errors %}<p class="settings-error" role="alert">{{ erro }}</p>{% endfor %}
+{% endfor %}
+{% for erro in formulario.non_field_errors %}<p class="settings-error" role="alert">{{ erro }}</p>{% endfor %}

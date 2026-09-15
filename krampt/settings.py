@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     'posts',
     'notificacoes',
     'mensagens',
+    'configuracoes.apps.ConfiguracoesConfig',
 ]
 
 MIDDLEWARE = [
@@ -106,6 +107,7 @@ TEMPLATES = [
                 'profile.context_processors.relacoes_de_seguir',
                 'notificacoes.context_processors.notificacoes_nao_lidas',
                 'mensagens.context_processors.mensagens_nao_lidas',
+                'configuracoes.context_processors.preferencias_interface',
             ],
         },
     },

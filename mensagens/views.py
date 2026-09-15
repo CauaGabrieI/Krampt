@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.db import transaction
 from django.db.models import Count, F, OuterRef, Prefetch, Q, Subquery
 from django.db.models.functions import Coalesce
@@ -158,17 +159,29 @@ def criar_conversa(request):
         return redirect("mensagens:lista")
 
     chave = f"{min(request.user.pk, outra.pk)}:{max(request.user.pk, outra.pk)}"
+    existente = Conversa.objects.filter(chave=chave).first()
+    if existente is None:
+        existente = (
+            Conversa.objects.filter(chave__isnull=True, participantes=request.user)
+            .filter(participantes=outra)
+            .first()
+        )
+    if existente is not None:
+        return redirect("mensagens:detalhe", conversa_id=existente.pk)
+
+    preferencias = getattr(outra, "preferencias", None)
+    permitido = preferencias is None or preferencias.permitir_novas_conversas
+    if permitido and preferencias and preferencias.mensagens_de == "ninguem":
+        permitido = False
+    if permitido and preferencias and preferencias.mensagens_de == "seguindo":
+        permitido = Perfil.objects.filter(usuario=outra, seguindo=request.user).exists()
+    if not permitido:
+        messages.error(request, "Essa pessoa não está aceitando novas conversas.")
+        return redirect("profile:perfil_publico", username=outra.username)
+
     with transaction.atomic():
-        conversa = Conversa.objects.filter(chave=chave).first()
-        if conversa is None:
-            conversa = (
-                Conversa.objects.filter(chave__isnull=True, participantes=request.user)
-                .filter(participantes=outra)
-                .first()
-            )
-        if conversa is None:
-            conversa, criada = Conversa.objects.get_or_create(chave=chave)
-            if criada:
-                conversa.participantes.add(request.user, outra)
+        conversa, criada = Conversa.objects.get_or_create(chave=chave)
+        if criada:
+            conversa.participantes.add(request.user, outra)
 
     return redirect("mensagens:detalhe", conversa_id=conversa.pk)

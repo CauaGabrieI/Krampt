@@ -1,9 +1,24 @@
 from .models import Notificacao
 
 
+CAMPO_POR_TIPO = {
+    "seguidor": "notificar_seguidores",
+    "curtida": "notificar_curtidas",
+    "curtida_comentario": "notificar_curtidas",
+    "comentario": "notificar_comentarios",
+    "resposta": "notificar_respostas",
+    "repost": "notificar_reposts",
+}
+
+
 def notificar(usuario, tipo, autor, post=None, comentario=None):
     if usuario is None or usuario.pk == autor.pk:
         return
+    preferencias = getattr(usuario, "preferencias", None)
+    if preferencias is not None:
+        campo = CAMPO_POR_TIPO.get(tipo)
+        if not preferencias.notificacoes_site or (campo and not getattr(preferencias, campo)):
+            return
     Notificacao.objects.create(
         usuario=usuario,
         tipo=tipo,

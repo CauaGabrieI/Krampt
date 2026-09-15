@@ -3,7 +3,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
-from django.db import transaction
 from django.db.models import Count, Q
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 from posts.models import Post, ImagemPost
@@ -12,7 +11,7 @@ from notificacoes.services import notificar, remover_notificacao
 from krampt.paginacao import parametros_sem_pagina, paginar
 from .forms import EditarPerfilForm
 from .models import Perfil
-from .services import perfil_do, redimensionar_banner
+from .services import perfil_do, salvar_edicao_perfil
 
 User = get_user_model()
 
@@ -123,28 +122,7 @@ def editar_perfil_view(request):
     if request.method == "POST":
         formulario = EditarPerfilForm(request.POST, request.FILES)
         if formulario.is_valid():
-            foto_anterior = perfil.foto.name if perfil and perfil.foto else None
-            banner_anterior = perfil.banner.name if perfil and perfil.banner else None
-            dados = formulario.cleaned_data
-            with transaction.atomic():
-                request.user.first_name = dados["nome"]
-                request.user.save(update_fields=["first_name"])
-                if perfil is None:
-                    perfil = Perfil(usuario=request.user)
-                perfil.biografia = dados["biografia"]
-                if dados["foto"]:
-                    perfil.foto = dados["foto"]
-                elif dados["remover_foto"]:
-                    perfil.foto = ""
-                if dados["banner"]:
-                    perfil.banner = redimensionar_banner(dados["banner"])
-                elif dados["remover_banner"]:
-                    perfil.banner = ""
-                perfil.save()
-            if foto_anterior and foto_anterior != perfil.foto.name:
-                perfil.foto.storage.delete(foto_anterior)
-            if banner_anterior and banner_anterior != perfil.banner.name:
-                perfil.banner.storage.delete(banner_anterior)
+            salvar_edicao_perfil(request.user, perfil, formulario.cleaned_data)
             return redirect("profile:perfil")
     else:
         formulario = EditarPerfilForm(initial={

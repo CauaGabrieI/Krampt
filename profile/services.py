@@ -2,6 +2,7 @@ from io import BytesIO
 
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
+from django.db import transaction
 from PIL import Image, ImageOps
 
 from .models import Perfil
@@ -53,3 +54,28 @@ def usuarios_seguidos(usuario, limite=6):
     if not ids:
         return []
     return list(User.objects.filter(pk__in=ids).order_by("username")[:limite])
+
+
+def salvar_edicao_perfil(usuario, perfil, dados):
+    foto_anterior = perfil.foto.name if perfil and perfil.foto else None
+    banner_anterior = perfil.banner.name if perfil and perfil.banner else None
+    with transaction.atomic():
+        usuario.first_name = dados["nome"]
+        usuario.save(update_fields=["first_name"])
+        if perfil is None:
+            perfil = Perfil(usuario=usuario)
+        perfil.biografia = dados["biografia"]
+        if dados["foto"]:
+            perfil.foto = dados["foto"]
+        elif dados["remover_foto"]:
+            perfil.foto = ""
+        if dados["banner"]:
+            perfil.banner = redimensionar_banner(dados["banner"])
+        elif dados["remover_banner"]:
+            perfil.banner = ""
+        perfil.save()
+    if foto_anterior and foto_anterior != perfil.foto.name:
+        perfil.foto.storage.delete(foto_anterior)
+    if banner_anterior and banner_anterior != perfil.banner.name:
+        perfil.banner.storage.delete(banner_anterior)
+    return perfil

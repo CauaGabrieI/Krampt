@@ -52,6 +52,41 @@ body {
   font-size: 15px;
   -webkit-font-smoothing: antialiased;
 }
+body[data-theme="escuro"] {
+  color-scheme: dark;
+  --background: #0D0D0F;
+  --surface: #16161A;
+  --surface-raised: #1D1D23;
+  --border: #2D2D34;
+  --text: #F4F4F5;
+  --muted: #A1A1AA;
+  --subtle: #71767b;
+  --primary-light: #A39AFF;
+}
+body[data-theme="claro"] {
+  color-scheme: light;
+  --background: #F7F7F8;
+  --surface: #FFFFFF;
+  --surface-raised: #F2F2F5;
+  --border: #E3E3E7;
+  --text: #18181B;
+  --muted: #71717A;
+  --subtle: #71717A;
+  --primary-light: #5143D5;
+  --accent-tint: rgba(109, 93, 251, .08);
+  --focus-ring: rgba(109, 93, 251, .18);
+}
+body[data-font-size="pequena"] { font-size: 14px; }
+body[data-font-size="grande"] { font-size: 16px; }
+body.reduce-motion *,
+body.reduce-motion *::before,
+body.reduce-motion *::after {
+  scroll-behavior: auto !important;
+  transition-duration: .001ms !important;
+  animation-duration: .001ms !important;
+  animation-iteration-count: 1 !important;
+}
+body[data-density="compacta"] .post { padding-top: 17px; padding-bottom: 17px; }
 body.home-feed-page { overflow: hidden; }
 html:has(body.home-feed-page) { overflow: hidden; }
 button, input, textarea { font: inherit; }

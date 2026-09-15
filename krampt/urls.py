@@ -36,6 +36,7 @@ urlpatterns = [
     path('login/', include("login.urls")),
     path('post/', include("posts.urls")),
     path('notificacoes/', include("notificacoes.urls")),
+    path('configuracoes/', include("configuracoes.urls")),
     path("logout/", views.logout_view, name="logout"),
 
 ]

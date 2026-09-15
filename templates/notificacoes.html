@@ -28,6 +28,8 @@
                 <span class="material-symbols-outlined">chat_bubble</span>
               {% elif notificacao.tipo == 'resposta' %}
                 <span class="material-symbols-outlined">reply</span>
+              {% elif notificacao.tipo == 'repost' %}
+                <span class="material-symbols-outlined">repeat</span>
               {% else %}
                 <span class="material-symbols-outlined">person_add</span>
               {% endif %}
@@ -45,6 +47,8 @@
                     comentou sua publicação
                   {% elif notificacao.tipo == 'resposta' %}
                     respondeu seu comentário
+                  {% elif notificacao.tipo == 'repost' %}
+                    republicou sua publicação
                   {% else %}
                     começou a seguir você
                   {% endif %}

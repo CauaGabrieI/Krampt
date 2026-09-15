@@ -12,10 +12,10 @@
       <span class="material-symbols-outlined" aria-hidden="true">person</span>
       <span>Perfil</span>
     </a>
-    <span class="account-menu-item is-disabled" aria-disabled="true">
+    <a class="account-menu-item" href="{% url 'configuracoes:inicio' %}">
       <span class="material-symbols-outlined" aria-hidden="true">settings</span>
       <span>Configurações</span>
-    </span>
+    </a>
     {% if request.user.is_staff %}
       <a class="account-menu-item" href="{% url 'testar_email' %}">
         <span class="material-symbols-outlined" aria-hidden="true">mail</span>

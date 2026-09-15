@@ -160,6 +160,9 @@ def republicar_post(request, post_id):
     )
     if not criada:
         republicacao.delete()
+        remover_notificacao(post.autor, "repost", request.user, post=post)
+    else:
+        notificar(post.autor, "repost", request.user, post=post)
     resposta = _resposta_ajax(
         request,
         reposted=criada,
