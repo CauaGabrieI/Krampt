@@ -9,7 +9,7 @@
   {% include "includes/site_header.html" %}
 
   <div class="app-shell">
-    {% include "includes/explore_rail.html" %}
+    {% include "includes/explore_rail.html" with split_rail=True %}
 
     <main class="feed profile-feed" id="perfil">
       {% with total=total_posts %}
@@ -86,6 +86,7 @@
       </section>
       {% include "includes/paginacao.html" %}
     </main>
+    {% include "includes/hashtags_rail.html" %}
   </div>
 {% endblock %}
 {% block scripts %}

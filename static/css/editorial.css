@@ -60,6 +60,12 @@ body { background: var(--background); color: var(--text); }
   max-height: none;
   overflow: visible;
 }
+.home-feed-page .hashtags-rail,
+.profile-page .hashtags-rail {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}
 .feed-tabs .is-active::after,
 .profile-tab.is-active::after { height: 2px; }
 .create-post { padding: 28px 30px 24px; background: var(--surface); border-bottom: 1px solid var(--border); }

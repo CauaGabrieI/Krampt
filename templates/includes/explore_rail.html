@@ -1,6 +1,6 @@
 {% load static %}
 <aside class="left-rail" aria-label="Descobrir">
-  {% if hashtags_populares %}
+  {% if not split_rail and hashtags_populares %}
   <section class="rail-card rail-card-hashtags">
     <h2>Hashtags populares</h2>
     <ul class="popular-hashtags">

@@ -1,0 +1,18 @@
+<aside class="right-rail hashtags-rail" aria-label="Hashtags populares">
+  {% if hashtags_populares %}
+    <section class="rail-card rail-card-hashtags">
+      <h2>Hashtags populares</h2>
+      <ul class="popular-hashtags">
+        {% for hashtag in hashtags_populares %}
+          <li>
+            <a href="{% url 'posts:hashtag' hashtag.slug %}">
+              <strong>#{{ hashtag.nome }}</strong>
+              <span>{{ hashtag.total_usos }} {% if hashtag.total_usos == 1 %}uso{% else %}usos{% endif %}</span>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+  <div class="rail-footer">Krampt.</div>
+</aside>

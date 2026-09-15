@@ -6,7 +6,7 @@
   {% include "includes/site_header.html" with active_page="home" %}
 
   <div class="app-shell">
-    {% include "includes/explore_rail.html" %}
+    {% include "includes/explore_rail.html" with split_rail=True %}
 
     <main class="feed" id="feed">
       <div class="feed-heading">
@@ -67,8 +67,7 @@
       {% include "includes/paginacao.html" %}
       </div>
     </main>
-
-
+    {% include "includes/hashtags_rail.html" %}
   </div>
 {% endblock %}
 {% block scripts %}
