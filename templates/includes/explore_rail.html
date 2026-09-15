@@ -1,5 +1,21 @@
 {% load static %}
 <aside class="left-rail" aria-label="Descobrir">
+  {% if hashtags_populares %}
+  <section class="rail-card rail-card-hashtags">
+    <h2>Hashtags populares</h2>
+    <ul class="popular-hashtags">
+      {% for hashtag in hashtags_populares %}
+        <li>
+          <a href="{% url 'posts:hashtag' hashtag.slug %}">
+            <strong>#{{ hashtag.nome }}</strong>
+            <span>{{ hashtag.total_usos }} {% if hashtag.total_usos == 1 %}uso{% else %}usos{% endif %}</span>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
   {% if sugestoes %}
   <section class="rail-card">
     <h2>Quem seguir</h2>
@@ -34,22 +50,6 @@
             </span>
           </a>
           {% include "includes/follow_button.html" with usuario=seguido %}
-        </li>
-      {% endfor %}
-    </ul>
-  </section>
-  {% endif %}
-
-  {% if hashtags_populares %}
-  <section class="rail-card">
-    <h2>Hashtags populares</h2>
-    <ul class="popular-hashtags">
-      {% for hashtag in hashtags_populares %}
-        <li>
-          <a href="{% url 'posts:hashtag' hashtag.slug %}">
-            <strong>#{{ hashtag.nome }}</strong>
-            <span>{{ hashtag.total_usos }} {% if hashtag.total_usos == 1 %}uso{% else %}usos{% endif %}</span>
-          </a>
         </li>
       {% endfor %}
     </ul>
