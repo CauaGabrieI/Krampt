@@ -1,4 +1,5 @@
 from .models import Notificacao
+from configuracoes.models import PreferenciasUsuario
 
 
 CAMPO_POR_TIPO = {
@@ -14,7 +15,14 @@ CAMPO_POR_TIPO = {
 def notificar(usuario, tipo, autor, post=None, comentario=None):
     if usuario is None or usuario.pk == autor.pk:
         return
-    preferencias = getattr(usuario, "preferencias", None)
+    from posts.models import UsuarioSilenciado
+    from posts.services import usuario_bloqueado_entre
+
+    if usuario_bloqueado_entre(usuario, autor):
+        return
+    if UsuarioSilenciado.objects.filter(usuario=usuario, silenciado=autor).exists():
+        return
+    preferencias = PreferenciasUsuario.objects.filter(usuario=usuario).first()
     if preferencias is not None:
         campo = CAMPO_POR_TIPO.get(tipo)
         if not preferencias.notificacoes_site or (campo and not getattr(preferencias, campo)):

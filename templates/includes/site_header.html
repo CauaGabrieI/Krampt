@@ -28,7 +28,7 @@
       <a class="header-bell" href="{% url 'notificacoes:lista' %}" aria-label="Notificações{% if notificacoes_nao_lidas %} ({{ notificacoes_nao_lidas }} não lidas){% endif %}">
         <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
         {% if notificacoes_nao_lidas %}
-          <span class="header-bell-badge" aria-hidden="true">{{ notificacoes_nao_lidas }}</span>
+          <span class="header-bell-badge" aria-hidden="true">{% if notificacoes_nao_lidas > 99 %}99+{% else %}{{ notificacoes_nao_lidas }}{% endif %}</span>
         {% endif %}
       </a>
       {% include "includes/account_menu.html" with menu_id="header-account-menu" %}

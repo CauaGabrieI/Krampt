@@ -15,8 +15,8 @@
       <div class="post-header">
         <div class="post-identity">
           <a class="post-author-link" href="{% url 'profile:perfil_publico' original.autor.username %}">
-            <span>@{{ original.autor.username }}</span>
             <strong>{{ original.autor.first_name|default:original.autor.username }}</strong>
+            <span>@{{ original.autor.username }}</span>
           </a>
           <span aria-hidden="true">·</span>
           <time datetime="{{ original.criado_em|date:'c' }}">{{ original.criado_em|date:"d/m/Y H:i" }}</time>

@@ -613,6 +613,7 @@ textarea::placeholder {
 .post-dialog p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .post-dialog label { color: var(--text); font-size: 12px; font-weight: 800; }
 .post-dialog textarea { min-height: 96px; resize: vertical; }
+.post-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
 .danger-button { border-color: #df4f5f; background: #df4f5f; }
 .danger-button:hover { border-color: #c84250; background: #c84250; }
 .post-edited { margin: 7px 0 0; color: var(--subtle); font-size: 12px; }
@@ -682,8 +683,6 @@ textarea::placeholder {
 .follow-button:hover { border-color: var(--primary-hover); background: var(--primary-hover); }
 .follow-button.is-following { border-color: var(--primary-light); background: transparent; color: var(--primary-light); }
 .follow-button.is-following:hover { border-color: var(--primary-light); background: rgba(124, 58, 237, .14); }
-.rail-footer { padding: 0 4px; color: var(--subtle); font-size: 11px; line-height: 1.6; }
-.left-rail > .rail-footer, .right-rail > .rail-footer { margin-top: auto; }
 
 /* Login and registration */
 .auth-page { display: grid; place-items: center; padding: 28px; background: var(--background); }

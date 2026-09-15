@@ -3,7 +3,7 @@
 {% block title %}Notificações | Krampt{% endblock %}
 {% block body_class %}notifications-page{% endblock %}
 {% block extra_head %}
-  <link rel="stylesheet" href="{% static 'css/notificacoes.css' %}?v=no-left-rail-2">
+  <link rel="stylesheet" href="{% static 'css/notificacoes.css' %}?v=actions-1">
 {% endblock %}
 {% block content %}
   {% include "includes/site_header.html" with active_page="notificacoes" %}
@@ -12,55 +12,71 @@
     <main class="feed" id="notificacoes">
       <div class="feed-heading">
         <h1>Notificações</h1>
+        <div class="notification-heading-actions">
+          <form method="post" action="{% url 'notificacoes:marcar_todas_como_lidas' %}">
+            {% csrf_token %}
+            <button class="notification-action-button" type="submit">Marcar todas como lidas</button>
+          </form>
+          <form method="post" action="{% url 'notificacoes:limpar' %}" data-confirm-message="Limpar todas as notificações?">
+            {% csrf_token %}
+            <button class="notification-action-button is-danger" type="submit">Limpar notificações</button>
+          </form>
+        </div>
       </div>
 
       <section class="notificacoes-list" aria-label="Notificações">
         {% for notificacao in notificacoes %}
-          {% if notificacao.post %}
-            <a class="notificacao-item" href="{% url 'posts:detalhe' notificacao.post_id %}">
-          {% else %}
-            <div class="notificacao-item">
-          {% endif %}
-            <span class="notificacao-icon notificacao-icon--{{ notificacao.tipo }}" aria-hidden="true">
-              {% if notificacao.tipo == 'curtida' or notificacao.tipo == 'curtida_comentario' %}
-                <span class="material-symbols-outlined">favorite</span>
-              {% elif notificacao.tipo == 'comentario' %}
-                <span class="material-symbols-outlined">chat_bubble</span>
-              {% elif notificacao.tipo == 'resposta' %}
-                <span class="material-symbols-outlined">reply</span>
-              {% elif notificacao.tipo == 'repost' %}
-                <span class="material-symbols-outlined">repeat</span>
-              {% else %}
-                <span class="material-symbols-outlined">person_add</span>
-              {% endif %}
-            </span>
-            <div class="notificacao-body">
-              {% include "includes/avatar.html" with usuario=notificacao.autor avatar_class="avatar-small" %}
-              <div class="notificacao-text">
-                <p>
-                  <strong>{{ notificacao.autor.first_name|default:notificacao.autor.username }}</strong>
-                  {% if notificacao.tipo == 'curtida' %}
-                    curtiu sua publicação
-                  {% elif notificacao.tipo == 'curtida_comentario' %}
-                    curtiu seu comentário
+          <article class="notificacao-item">
+            {% with destino=notificacao.destino %}
+              <a class="notificacao-link" href="{% if destino %}{{ destino }}{% else %}#{% endif %}">
+                <span class="notificacao-icon notificacao-icon--{{ notificacao.tipo }}" aria-hidden="true">
+                  {% if notificacao.tipo == 'curtida' or notificacao.tipo == 'curtida_comentario' %}
+                    <span class="material-symbols-outlined">favorite</span>
                   {% elif notificacao.tipo == 'comentario' %}
-                    comentou sua publicação
+                    <span class="material-symbols-outlined">chat_bubble</span>
                   {% elif notificacao.tipo == 'resposta' %}
-                    respondeu seu comentário
+                    <span class="material-symbols-outlined">reply</span>
                   {% elif notificacao.tipo == 'repost' %}
-                    republicou sua publicação
+                    <span class="material-symbols-outlined">repeat</span>
+                  {% elif notificacao.tipo == 'seguidor' %}
+                    <span class="material-symbols-outlined">person_add</span>
                   {% else %}
-                    começou a seguir você
+                    <span class="material-symbols-outlined">notifications</span>
                   {% endif %}
-                </p>
-                <span>há {{ notificacao.criado_em|timesince }}</span>
-              </div>
-            </div>
-          {% if notificacao.post %}
-            </a>
-          {% else %}
-            </div>
-          {% endif %}
+                </span>
+                <div class="notificacao-body">
+                  {% include "includes/avatar.html" with usuario=notificacao.autor avatar_class="avatar-small" %}
+                  <div class="notificacao-text">
+                    <p>
+                      <strong>{{ notificacao.autor.first_name|default:notificacao.autor.username }}</strong>
+                      {% if notificacao.tipo == 'curtida' %}
+                        curtiu sua publicação
+                      {% elif notificacao.tipo == 'curtida_comentario' %}
+                        curtiu seu comentário
+                      {% elif notificacao.tipo == 'comentario' %}
+                        comentou sua publicação
+                      {% elif notificacao.tipo == 'resposta' %}
+                        respondeu seu comentário
+                      {% elif notificacao.tipo == 'repost' %}
+                        republicou sua publicação
+                      {% elif notificacao.tipo == 'seguidor' %}
+                        começou a seguir você
+                      {% else %}
+                        Você recebeu uma notificação.
+                      {% endif %}
+                    </p>
+                    <span>há {{ notificacao.criado_em|timesince }}</span>
+                  </div>
+                </div>
+              </a>
+            {% endwith %}
+            <form method="post" action="{% url 'notificacoes:excluir' notificacao.pk %}">
+              {% csrf_token %}
+              <button class="notificacao-delete" type="submit" aria-label="Excluir notificação">
+                <span class="material-symbols-outlined" aria-hidden="true">close</span>
+              </button>
+            </form>
+          </article>
         {% empty %}
           <div class="empty-state notify-empty">
             <span class="empty-state-icon material-symbols-outlined" aria-hidden="true">notifications</span>

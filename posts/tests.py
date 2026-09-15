@@ -777,6 +777,18 @@ class MenuEAcoesSociaisDoPostTests(TestCase):
         self.client.force_login(self.terceiro)
         self.assertContains(self.client.get(reverse("home")), "Post para menu")
 
+    def test_desocultar_remove_relacao_do_usuario_atual_e_post_volta_ao_feed(self):
+        PostSemInteresse.objects.create(usuario=self.leitor, post=self.post)
+        PostSemInteresse.objects.create(usuario=self.terceiro, post=self.post)
+        self.client.force_login(self.leitor)
+
+        resposta = self.client.post(reverse("posts:desocultar", args=[self.post.pk]))
+
+        self.assertRedirects(resposta, reverse("home"), fetch_redirect_response=False)
+        self.assertFalse(PostSemInteresse.objects.filter(usuario=self.leitor, post=self.post).exists())
+        self.assertTrue(PostSemInteresse.objects.filter(usuario=self.terceiro, post=self.post).exists())
+        self.assertContains(self.client.get(reverse("home")), "Post para menu")
+
     def test_silenciar_usuario_remove_posts_do_feed_sem_remover_follow(self):
         from profile.models import Perfil
 
@@ -794,6 +806,20 @@ class MenuEAcoesSociaisDoPostTests(TestCase):
             "Post para menu",
         )
 
+    def test_dessilenciar_remove_relacao_e_preserva_follow(self):
+        from profile.models import Perfil
+
+        perfil = Perfil.objects.create(usuario=self.leitor)
+        perfil.seguindo.add(self.autor)
+        UsuarioSilenciado.objects.create(usuario=self.leitor, silenciado=self.autor)
+        self.client.force_login(self.leitor)
+
+        self.client.post(reverse("posts:dessilenciar_usuario", args=[self.autor.pk]))
+
+        self.assertFalse(UsuarioSilenciado.objects.filter(usuario=self.leitor, silenciado=self.autor).exists())
+        self.assertTrue(perfil.seguindo.filter(pk=self.autor.pk).exists())
+        self.assertContains(self.client.get(reverse("home")), "Post para menu")
+
     def test_bloquear_usuario_remove_follows_e_filtra_feed(self):
         from profile.models import Perfil
 
@@ -809,6 +835,27 @@ class MenuEAcoesSociaisDoPostTests(TestCase):
         self.assertFalse(perfil_leitor.seguindo.filter(pk=self.autor.pk).exists())
         self.assertFalse(perfil_autor.seguindo.filter(pk=self.leitor.pk).exists())
         self.assertNotContains(self.client.get(reverse("home")), "Post para menu")
+
+    def test_desbloquear_remove_so_bloqueio_do_usuario_e_nao_restaura_follows(self):
+        from mensagens.services import pode_enviar_mensagem
+        from profile.models import Perfil
+
+        perfil_leitor = Perfil.objects.create(usuario=self.leitor)
+        perfil_autor = Perfil.objects.create(usuario=self.autor)
+        UsuarioBloqueado.objects.create(usuario=self.leitor, bloqueado=self.autor)
+        UsuarioBloqueado.objects.create(usuario=self.autor, bloqueado=self.leitor)
+        self.client.force_login(self.leitor)
+
+        self.client.post(reverse("posts:desbloquear_usuario", args=[self.autor.pk]))
+
+        self.assertFalse(UsuarioBloqueado.objects.filter(usuario=self.leitor, bloqueado=self.autor).exists())
+        self.assertTrue(UsuarioBloqueado.objects.filter(usuario=self.autor, bloqueado=self.leitor).exists())
+        self.assertFalse(perfil_leitor.seguindo.filter(pk=self.autor.pk).exists())
+        self.assertFalse(perfil_autor.seguindo.filter(pk=self.leitor.pk).exists())
+        self.assertFalse(pode_enviar_mensagem(self.leitor, self.autor))
+
+        UsuarioBloqueado.objects.filter(usuario=self.autor, bloqueado=self.leitor).delete()
+        self.assertTrue(pode_enviar_mensagem(self.leitor, self.autor))
 
     def test_bloqueio_impede_acoes_diretas_no_post(self):
         comentario = Comentario.objects.create(post=self.post, autor=self.autor, conteudo="Base")
@@ -832,6 +879,8 @@ class MenuEAcoesSociaisDoPostTests(TestCase):
 
         self.assertEqual(self.client.post(reverse("posts:bloquear_usuario", args=[self.leitor.pk])).status_code, 403)
         self.assertEqual(self.client.post(reverse("posts:silenciar_usuario", args=[self.leitor.pk])).status_code, 403)
+        self.assertEqual(self.client.post(reverse("posts:desbloquear_usuario", args=[self.leitor.pk])).status_code, 403)
+        self.assertEqual(self.client.post(reverse("posts:dessilenciar_usuario", args=[self.leitor.pk])).status_code, 403)
         self.assertFalse(UsuarioBloqueado.objects.exists())
         self.assertFalse(UsuarioSilenciado.objects.exists())
 

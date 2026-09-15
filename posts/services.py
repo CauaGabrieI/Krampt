@@ -205,7 +205,30 @@ def bloquear_usuario(usuario, bloqueado):
             perfil_usuario.seguindo.remove(bloqueado)
         if perfil_bloqueado:
             perfil_bloqueado.seguindo.remove(usuario)
+        from notificacoes.models import Notificacao
+
+        Notificacao.objects.filter(
+            Q(usuario=usuario, autor=bloqueado) | Q(usuario=bloqueado, autor=usuario)
+        ).delete()
     return True
+
+
+def desbloquear_usuario(usuario, bloqueado):
+    if usuario.pk == bloqueado.pk:
+        return False
+    UsuarioBloqueado.objects.filter(usuario=usuario, bloqueado=bloqueado).delete()
+    return True
+
+
+def dessilenciar_usuario(usuario, silenciado):
+    if usuario.pk == silenciado.pk:
+        return False
+    UsuarioSilenciado.objects.filter(usuario=usuario, silenciado=silenciado).delete()
+    return True
+
+
+def desocultar_post(usuario, post):
+    return PostSemInteresse.objects.filter(usuario=usuario, post=post).delete()[0] > 0
 
 
 def posts_para_exibir(queryset, usuario, incluir_comentarios=True):

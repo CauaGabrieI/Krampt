@@ -63,6 +63,16 @@
 .settings-session-list { display: grid; gap: 0; margin: 17px 0 0; padding: 0; list-style: none; }
 .settings-session-list li { display: flex; justify-content: space-between; gap: 16px; padding: 11px 0; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
 .settings-session-list strong { color: var(--primary-light); }
+.settings-relation-list { display: grid; gap: 0; margin: 17px 0 0; padding: 0; list-style: none; }
+.settings-relation-list li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; border-top: 1px solid var(--border); }
+.settings-relation-user { display: flex; align-items: center; gap: 11px; min-width: 0; color: var(--text); }
+.settings-relation-user > span, .settings-hidden-post { display: grid; gap: 3px; min-width: 0; }
+.settings-relation-user strong, .settings-hidden-post strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.settings-relation-user small, .settings-hidden-post small { color: var(--subtle); font-size: 11px; }
+.settings-hidden-post span { color: var(--muted); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.settings-relation-list form { flex: 0 0 auto; }
+.settings-relation-list .settings-secondary-button { margin-top: 0; }
+.settings-empty-row { justify-content: flex-start; color: var(--muted); font-size: 12px; }
 @media (max-width: 760px) {
   .settings-shell { width: 100%; height: calc(var(--viewport-height) - 64px); margin: 0; border-right: 0; border-bottom: 0; border-left: 0; }
   .settings-heading { min-height: 76px; padding: 14px 18px; }
@@ -73,4 +83,5 @@
   .settings-nav a.is-active { border-bottom-color: var(--primary); }
   .settings-content { padding: 24px 18px 40px; }
   .settings-danger-grid { grid-template-columns: 1fr; }
+  .settings-relation-list li { align-items: flex-start; flex-direction: column; }
 }

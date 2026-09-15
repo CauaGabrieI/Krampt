@@ -202,6 +202,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
 .global-toast--warning .global-toast-icon { color: #efbe55; }
 .global-toast--error .global-toast-icon { color: #ff8292; }
 .global-toast-text { font-size: 12px; font-weight: 700; line-height: 1.45; overflow-wrap: anywhere; }
+.global-toast-action { border: 0; background: transparent; color: var(--primary-light); font-size: 12px; font-weight: 800; cursor: pointer; }
+.global-toast-action:hover { text-decoration: underline; }
 .global-toast-close { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; background: transparent; color: var(--muted); }
 .global-toast-close:hover { background: var(--surface-raised); color: var(--text); }
 .global-toast-close .material-symbols-outlined { font-size: 18px; }

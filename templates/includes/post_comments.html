@@ -3,7 +3,7 @@
   {% if original.comentarios_raiz %}
   <div class="comments-list">
     {% for comentario in original.comentarios_raiz %}
-      <div class="comment-item">
+      <div class="comment-item" id="comentario-{{ comentario.id }}">
         <div class="comment-header">
           <a class="comment-author" href="{% url 'profile:perfil_publico' comentario.autor.username %}">
             {% include "includes/avatar.html" with usuario=comentario.autor avatar_class="comment-avatar" %}
@@ -37,7 +37,7 @@
         {% if comentario.respostas.exists %}
           <div class="comment-replies">
             {% for resposta in comentario.respostas.all %}
-              <div class="comment-reply">
+              <div class="comment-reply" id="comentario-{{ resposta.id }}">
                 <a class="comment-reply-author" href="{% url 'profile:perfil_publico' resposta.autor.username %}">
                   {% include "includes/avatar.html" with usuario=resposta.autor avatar_class="reply-avatar" %}
                   <div>

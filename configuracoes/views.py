@@ -16,7 +16,7 @@ from django.views.decorators.http import require_GET, require_http_methods
 from login.models import VerificacaoEmail
 from login.services import emitir_codigo
 from mensagens.models import Mensagem
-from posts.models import Post
+from posts.models import Post, PostSemInteresse, UsuarioBloqueado, UsuarioSilenciado
 from profile.models import Perfil
 
 from .forms import (
@@ -198,6 +198,17 @@ def configuracoes_view(request, secao="conta"):
         "email_verificado": bool(verificacao and verificacao.verificado_em),
         "sessoes": _sessoes_do_usuario(request) if secao == "seguranca" else (),
     }
+    if secao == "privacidade":
+        contexto["contas_bloqueadas"] = UsuarioBloqueado.objects.filter(
+            usuario=request.user
+        ).select_related("bloqueado", "bloqueado__perfil").order_by("-criado_em", "-pk")[:50]
+    elif secao == "conteudo":
+        contexto["contas_silenciadas"] = UsuarioSilenciado.objects.filter(
+            usuario=request.user
+        ).select_related("silenciado", "silenciado__perfil").order_by("-criado_em", "-pk")[:50]
+        contexto["posts_ocultos"] = PostSemInteresse.objects.filter(
+            usuario=request.user
+        ).select_related("post", "post__autor", "post__autor__perfil").order_by("-criado_em", "-pk")[:50]
     return render(request, "configuracoes.html", contexto)
 
 

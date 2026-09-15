@@ -24,6 +24,9 @@ from .services import (
     bloquear_usuario,
     comprimir_imagem_lossless,
     conteudo_com_hashtags,
+    desocultar_post,
+    desbloquear_usuario,
+    dessilenciar_usuario,
     filtrar_posts_visiveis,
     posts_para_exibir,
 )
@@ -190,7 +193,26 @@ def ignorar_post(request, post_id):
     post = get_object_or_404(Post, pk=post_id, original__isnull=True)
     PostSemInteresse.objects.get_or_create(usuario=request.user, post=post)
     messages.success(request, "Post ocultado.")
-    resposta = _resposta_ajax(request, hidden=True, message="Post ocultado.")
+    resposta = _resposta_ajax(
+        request,
+        hidden=True,
+        message="Post ocultado.",
+        undo_label="Desfazer",
+        undo_url=reverse("posts:desocultar", args=[post.pk]),
+        undo_message="Post exibido novamente.",
+    )
+    if resposta:
+        return resposta
+    return redirect(_pagina_de_retorno(request) or "home")
+
+
+@login_required
+@require_POST
+def desocultar_post_view(request, post_id):
+    post = get_object_or_404(Post, pk=post_id, original__isnull=True)
+    desocultar_post(request.user, post)
+    messages.success(request, "Post exibido novamente.")
+    resposta = _resposta_ajax(request, unhidden=True, message="Post exibido novamente.")
     if resposta:
         return resposta
     return redirect(_pagina_de_retorno(request) or "home")
@@ -204,7 +226,27 @@ def silenciar_usuario(request, usuario_id):
         return HttpResponseForbidden("Você não pode silenciar a própria conta.")
     UsuarioSilenciado.objects.get_or_create(usuario=request.user, silenciado=silenciado)
     messages.success(request, f"@{silenciado.username} foi silenciado.")
-    resposta = _resposta_ajax(request, muted=True, message=f"@{silenciado.username} foi silenciado.")
+    resposta = _resposta_ajax(
+        request,
+        muted=True,
+        message=f"@{silenciado.username} foi silenciado.",
+        undo_label="Desfazer",
+        undo_url=reverse("posts:dessilenciar_usuario", args=[silenciado.pk]),
+        undo_message=f"@{silenciado.username} foi dessilenciado.",
+    )
+    if resposta:
+        return resposta
+    return redirect(_pagina_de_retorno(request) or "home")
+
+
+@login_required
+@require_POST
+def dessilenciar_usuario_view(request, usuario_id):
+    silenciado = get_object_or_404(User, pk=usuario_id)
+    if not dessilenciar_usuario(request.user, silenciado):
+        return HttpResponseForbidden("Você não pode dessilenciar a própria conta.")
+    messages.success(request, f"@{silenciado.username} foi dessilenciado.")
+    resposta = _resposta_ajax(request, unmuted=True, message=f"@{silenciado.username} foi dessilenciado.")
     if resposta:
         return resposta
     return redirect(_pagina_de_retorno(request) or "home")
@@ -217,7 +259,27 @@ def bloquear_usuario_view(request, usuario_id):
     if not bloquear_usuario(request.user, bloqueado):
         return HttpResponseForbidden("Você não pode bloquear a própria conta.")
     messages.success(request, f"@{bloqueado.username} foi bloqueado.")
-    resposta = _resposta_ajax(request, blocked=True, message=f"@{bloqueado.username} foi bloqueado.")
+    resposta = _resposta_ajax(
+        request,
+        blocked=True,
+        message=f"@{bloqueado.username} foi bloqueado.",
+        undo_label="Desfazer",
+        undo_url=reverse("posts:desbloquear_usuario", args=[bloqueado.pk]),
+        undo_message=f"@{bloqueado.username} foi desbloqueado.",
+    )
+    if resposta:
+        return resposta
+    return redirect(_pagina_de_retorno(request) or "home")
+
+
+@login_required
+@require_POST
+def desbloquear_usuario_view(request, usuario_id):
+    bloqueado = get_object_or_404(User, pk=usuario_id)
+    if not desbloquear_usuario(request.user, bloqueado):
+        return HttpResponseForbidden("Você não pode desbloquear a própria conta.")
+    messages.success(request, f"@{bloqueado.username} foi desbloqueado.")
+    resposta = _resposta_ajax(request, unblocked=True, message=f"@{bloqueado.username} foi desbloqueado.")
     if resposta:
         return resposta
     return redirect(_pagina_de_retorno(request) or "home")

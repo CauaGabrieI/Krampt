@@ -3,7 +3,7 @@
 {% block title %}Configurações | Krampt{% endblock %}
 {% block body_class %}settings-page{% endblock %}
 {% block extra_head %}
-  <link rel="stylesheet" href="{% static 'css/configuracoes.css' %}?v=account-ux-2">
+  <link rel="stylesheet" href="{% static 'css/configuracoes.css' %}?v=social-controls-1">
 {% endblock %}
 {% block content %}
   {% include "includes/site_header.html" %}
@@ -71,6 +71,30 @@
 
         {% elif secao == "privacidade" %}
           <div class="settings-section-heading"><h2>Privacidade</h2><p>Controle a visibilidade da sua conta e do seu perfil.</p></div>
+          <div class="settings-group">
+            <h3>Contas bloqueadas</h3>
+            <p>Gerencie as contas que você bloqueou. Desbloquear não restaura follows ou mensagens antigas.</p>
+            <ul class="settings-relation-list">
+              {% for bloqueio in contas_bloqueadas %}
+                <li>
+                  <a class="settings-relation-user" href="{% url 'profile:perfil_publico' bloqueio.bloqueado.username %}">
+                    {% include "includes/avatar.html" with usuario=bloqueio.bloqueado avatar_class="avatar-small" %}
+                    <span>
+                      <strong>{{ bloqueio.bloqueado.first_name|default:bloqueio.bloqueado.username }}</strong>
+                      <small>@{{ bloqueio.bloqueado.username }}</small>
+                    </span>
+                  </a>
+                  <form method="post" action="{% url 'posts:desbloquear_usuario' bloqueio.bloqueado.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="return_path" value="{{ request.get_full_path }}">
+                    <button class="settings-secondary-button" type="submit">Desbloquear</button>
+                  </form>
+                </li>
+              {% empty %}
+                <li class="settings-empty-row">Você não bloqueou nenhuma conta.</li>
+              {% endfor %}
+            </ul>
+          </div>
           <div class="settings-coming"><strong>Conta privada, descoberta por e-mail e status de atividade</strong><span>Em breve — essas opções dependem de regras de visibilidade e pedidos de seguimento que ainda não existem.</span></div>
 
         {% elif secao == "mensagens" %}
@@ -104,7 +128,53 @@
 
         {% elif secao == "conteudo" %}
           <div class="settings-section-heading"><h2>Conteúdo</h2><p>Preferências para mídia e filtros do feed.</p></div>
-          <div class="settings-coming"><strong>Autoplay de GIF, palavras, conteúdo sensível e usuários silenciados</strong><span>Em breve — exigem processamento de mídia e uma camada de filtragem que ainda não existem.</span></div>
+          <div class="settings-group">
+            <h3>Contas silenciadas</h3>
+            <p>Posts dessas contas não aparecem no seu feed, mas follows e mensagens continuam com as regras normais.</p>
+            <ul class="settings-relation-list">
+              {% for silencio in contas_silenciadas %}
+                <li>
+                  <a class="settings-relation-user" href="{% url 'profile:perfil_publico' silencio.silenciado.username %}">
+                    {% include "includes/avatar.html" with usuario=silencio.silenciado avatar_class="avatar-small" %}
+                    <span>
+                      <strong>{{ silencio.silenciado.first_name|default:silencio.silenciado.username }}</strong>
+                      <small>@{{ silencio.silenciado.username }}</small>
+                    </span>
+                  </a>
+                  <form method="post" action="{% url 'posts:dessilenciar_usuario' silencio.silenciado.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="return_path" value="{{ request.get_full_path }}">
+                    <button class="settings-secondary-button" type="submit">Dessilenciar</button>
+                  </form>
+                </li>
+              {% empty %}
+                <li class="settings-empty-row">Você não silenciou nenhuma conta.</li>
+              {% endfor %}
+            </ul>
+          </div>
+          <div class="settings-group">
+            <h3>Posts ocultos</h3>
+            <p>Posts marcados como sem interesse ficam fora do seu feed até você exibi-los novamente.</p>
+            <ul class="settings-relation-list settings-hidden-post-list">
+              {% for oculto in posts_ocultos %}
+                <li>
+                  <div class="settings-hidden-post">
+                    <strong>@{{ oculto.post.autor.username }}</strong>
+                    <span>{{ oculto.post.conteudo|default:"Post com mídia"|truncatechars:110 }}</span>
+                    <small>{{ oculto.criado_em|date:"d/m/Y H:i" }}</small>
+                  </div>
+                  <form method="post" action="{% url 'posts:desocultar' oculto.post.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="return_path" value="{{ request.get_full_path }}">
+                    <button class="settings-secondary-button" type="submit">Exibir novamente</button>
+                  </form>
+                </li>
+              {% empty %}
+                <li class="settings-empty-row">Você não ocultou nenhum post.</li>
+              {% endfor %}
+            </ul>
+          </div>
+          <div class="settings-coming"><strong>Autoplay de GIF, palavras e conteúdo sensível</strong><span>Em breve — exigem processamento de mídia e uma camada de filtragem que ainda não existem.</span></div>
 
         {% else %}
           <div class="settings-section-heading"><h2>Dados e armazenamento</h2><p>Exporte seus dados ou remova conteúdo criado por você.</p></div>

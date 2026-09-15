@@ -1,5 +1,11 @@
 (function () {
   document.addEventListener('submit', function (event) {
+    const confirmForm = event.target.closest('form[data-confirm-message]');
+    if (confirmForm && !window.confirm(confirmForm.dataset.confirmMessage)) {
+      event.preventDefault();
+      return;
+    }
+
     const form = event.target.closest('form[data-submit-once]');
     if (!form || form.dataset.submitting === 'true') {
       if (form) event.preventDefault();
@@ -52,8 +58,28 @@
         form.querySelector('textarea')?.focus();
       }
       if (tipo === 'hide-post') {
+        form.closest('dialog')?.close();
         form.closest('.post')?.remove();
-        if (window.KramptToast) window.KramptToast(dados.message || 'Post ocultado.', 'success');
+        if (window.KramptToast) {
+          const csrf = form.querySelector('[name="csrfmiddlewaretoken"]')?.value;
+          const undoUrl = dados.undo_url;
+          window.KramptToast(dados.message || 'Post ocultado.', 'success', undoUrl ? {
+            label: dados.undo_label || 'Desfazer',
+            onClick: async () => {
+              const payload = new FormData();
+              if (csrf) payload.append('csrfmiddlewaretoken', csrf);
+              const undoResponse = await fetch(undoUrl, {
+                method: 'POST',
+                body: payload,
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+              });
+              if (!undoResponse.ok) throw new Error('Não foi possível desfazer.');
+              const undoData = await undoResponse.json();
+              window.KramptToast(undoData.message || dados.undo_message || 'Ação desfeita.', 'success');
+            }
+          } : null);
+        }
       }
       if (tipo === 'delete-comment') form.closest('.comment-item, .comment-reply')?.remove();
       if (tipo === 'delete-post' || form.querySelector('.delete-post-action')) {

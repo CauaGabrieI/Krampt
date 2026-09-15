@@ -10,7 +10,7 @@ function setupToast(toast) {
   if (!persistente) window.setTimeout(fechar, 6000);
 }
 
-window.KramptToast = function (message, type = 'info') {
+window.KramptToast = function (message, type = 'info', action = null) {
   let region = document.querySelector('.toast-region');
   if (!region) {
     region = document.createElement('div');
@@ -31,6 +31,14 @@ window.KramptToast = function (message, type = 'info') {
     </button>
   `;
   toast.querySelector('.global-toast-text').textContent = message;
+  if (action?.label && typeof action.onClick === 'function') {
+    const button = document.createElement('button');
+    button.className = 'global-toast-action';
+    button.type = 'button';
+    button.textContent = action.label;
+    button.addEventListener('click', action.onClick, { once: true });
+    toast.querySelector('.global-toast-text').insertAdjacentElement('afterend', button);
+  }
   region.append(toast);
   setupToast(toast);
 };

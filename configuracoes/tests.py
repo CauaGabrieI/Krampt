@@ -14,7 +14,7 @@ from django.urls import reverse
 from mensagens.models import Conversa, Mensagem
 from notificacoes.models import Notificacao
 from notificacoes.services import notificar
-from posts.models import Comentario, ImagemPost, Post
+from posts.models import Comentario, ImagemPost, Post, PostSemInteresse, UsuarioBloqueado, UsuarioSilenciado
 from profile.models import Perfil
 from .models import PreferenciasUsuario
 
@@ -453,6 +453,38 @@ class ConfiguracoesTests(TestCase):
         post = Post.objects.create(autor=self.caua, conteudo="Teste")
         notificar(self.caua, "curtida", self.ana, post=post)
         self.assertFalse(Notificacao.objects.exists())
+
+    def test_privacidade_lista_apenas_contas_bloqueadas_pelo_usuario(self):
+        leo = User.objects.create_user(username="leo", password="Senha!Forte123")
+        UsuarioBloqueado.objects.create(usuario=self.caua, bloqueado=self.ana)
+        UsuarioBloqueado.objects.create(usuario=leo, bloqueado=self.caua)
+
+        resposta = self.client.get(reverse("configuracoes:secao", args=["privacidade"]))
+
+        self.assertContains(resposta, "Contas bloqueadas")
+        self.assertContains(resposta, "@ana")
+        self.assertContains(resposta, reverse("posts:desbloquear_usuario", args=[self.ana.pk]))
+        self.assertNotContains(resposta, "@leo")
+
+    def test_conteudo_lista_silenciados_e_posts_ocultos_do_usuario(self):
+        leo = User.objects.create_user(username="leo", password="Senha!Forte123")
+        post_ana = Post.objects.create(autor=self.ana, conteudo="Post oculto da Ana")
+        post_leo = Post.objects.create(autor=leo, conteudo="Post oculto do Leo")
+        UsuarioSilenciado.objects.create(usuario=self.caua, silenciado=self.ana)
+        UsuarioSilenciado.objects.create(usuario=leo, silenciado=self.caua)
+        PostSemInteresse.objects.create(usuario=self.caua, post=post_ana)
+        PostSemInteresse.objects.create(usuario=leo, post=post_leo)
+
+        resposta = self.client.get(reverse("configuracoes:secao", args=["conteudo"]))
+
+        self.assertContains(resposta, "Contas silenciadas")
+        self.assertContains(resposta, "Posts ocultos")
+        self.assertContains(resposta, "@ana")
+        self.assertContains(resposta, "Post oculto da Ana")
+        self.assertContains(resposta, reverse("posts:dessilenciar_usuario", args=[self.ana.pk]))
+        self.assertContains(resposta, reverse("posts:desocultar", args=[post_ana.pk]))
+        self.assertNotContains(resposta, "@leo")
+        self.assertNotContains(resposta, "Post oculto do Leo")
 
     def test_aparencia_persiste_e_rejeita_tema_invalido(self):
         url = reverse("configuracoes:secao", args=["aparencia"])
