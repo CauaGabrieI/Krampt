@@ -24,6 +24,9 @@
       {% if email_verificado %}
         <div class="auth-success" role="status">E-mail confirmado. Agora você pode entrar.</div>
       {% endif %}
+      {% if conta_reativada %}
+        <div class="auth-success" role="status">Sua conta foi reativada. Você já pode entrar novamente.</div>
+      {% endif %}
       {% if erro_limite %}
         <div class="error-message" role="alert">{{ erro_limite }}</div>
       {% endif %}

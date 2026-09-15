@@ -27,6 +27,13 @@ class PreferenciasUsuario(models.Model):
         on_delete=models.CASCADE,
         related_name="preferencias",
     )
+    desativada_em = models.DateTimeField(null=True, blank=True)
+    token_reativacao_hash = models.CharField(max_length=64, blank=True)
+    token_reativacao_expira_em = models.DateTimeField(null=True, blank=True)
+    reativacao_ultimo_envio_em = models.DateTimeField(null=True, blank=True)
+    reativacao_janela_envio_em = models.DateTimeField(null=True, blank=True)
+    reativacao_envios_na_janela = models.PositiveSmallIntegerField(default=0)
+
     permitir_novas_conversas = models.BooleanField(default=True)
     mensagens_de = models.CharField(
         max_length=12,

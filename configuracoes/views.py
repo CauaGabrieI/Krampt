@@ -27,6 +27,7 @@ from .forms import (
     NotificacoesForm,
 )
 from .models import PreferenciasUsuario
+from .services import desativar_conta, excluir_conta_com_limpeza
 
 
 SECOES = (
@@ -95,8 +96,7 @@ def configuracoes_view(request, secao="conta"):
                 and confirmacao.cleaned_data["confirmacao"] == request.user.username
                 and request.user.check_password(confirmacao.cleaned_data["senha"])
             ):
-                request.user.is_active = False
-                request.user.save(update_fields=["is_active"])
+                desativar_conta(request.user)
                 logout(request)
                 return redirect("login:login")
             messages.error(request, "Confirmação ou senha inválida.")
@@ -109,8 +109,16 @@ def configuracoes_view(request, secao="conta"):
                 and request.user.check_password(confirmacao.cleaned_data["senha"])
             ):
                 usuario = request.user
+                try:
+                    excluir_conta_com_limpeza(usuario)
+                except Exception:
+                    messages.error(
+                        request,
+                        "Não foi possível excluir a conta agora. Tente novamente em instantes.",
+                    )
+                    return redirect("configuracoes:secao", secao="conta")
                 logout(request)
-                usuario.delete()
+                messages.success(request, "Sua conta foi excluída definitivamente.")
                 return redirect("cadastro")
             messages.error(request, "Confirmação ou senha inválida.")
             return redirect("configuracoes:secao", secao="conta")

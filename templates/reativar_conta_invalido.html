@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Link inválido | Krampt{% endblock %}
+{% block body_class %}auth-page{% endblock %}
+{% block content %}
+  <div class="auth-layout">
+    <aside class="auth-story">
+      <a class="brand" href="{% url 'login:login' %}" aria-label="Krampt">
+        <img class="brand-mark" src="{% static 'imgs/logo.png' %}" alt="">
+        <span>Krampt</span>
+      </a>
+      <div class="auth-story-content">
+        <h1>Link inválido</h1>
+        <p>Solicite um novo acesso se ainda quiser reativar sua conta.</p>
+      </div>
+    </aside>
+    <main class="auth-panel">
+      <p class="eyebrow">Reativação</p>
+      <h2>Este link de reativação é inválido ou expirou.</h2>
+      <p class="auth-subtitle">Por segurança, links de reativação são temporários e funcionam apenas uma vez.</p>
+      <p class="auth-switch"><a href="{% url 'login:login' %}">Voltar ao login</a></p>
+    </main>
+  </div>
+{% endblock %}

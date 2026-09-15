@@ -40,6 +40,23 @@
         <input type="hidden" name="acao" value="reenviar">
         <button type="submit">Reenviar código</button>
       </form>
+      <details class="auth-secondary-panel">
+        <summary>Trocar e-mail usado na conta</summary>
+        <form class="auth-form" method="post" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="acao" value="trocar_email">
+          {% if formulario_email.errors %}
+            <div class="error-message" role="alert">
+              {% for campo in formulario_email %}{% for mensagem_erro in campo.errors %}<p>{{ mensagem_erro }}</p>{% endfor %}{% endfor %}
+            </div>
+          {% endif %}
+          <div class="form-group field-float">
+            <input type="email" id="novo-email" name="email" value="{{ formulario_email.email.value|default:'' }}" maxlength="254" placeholder=" " autocomplete="email" required>
+            <label for="novo-email">Novo e-mail</label>
+          </div>
+          <button class="primary-button" type="submit">Salvar e enviar novo código</button>
+        </form>
+      </details>
       <p class="auth-switch"><a href="{% url 'login:login' %}">Voltar ao login</a></p>
     </main>
   </div>

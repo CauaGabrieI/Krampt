@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model, login
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_not_required
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
@@ -12,12 +13,18 @@ from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_http_methods
 
 from .forms import (
-    CadastroForm, LoginForm, RedefinirSenhaForm, VerificacaoForm, normalizar_usuario,
+    CadastroForm, LoginForm, RedefinirSenhaForm, TrocarEmailVerificacaoForm,
+    VerificacaoForm, normalizar_identidade_login,
 )
 from .models import VerificacaoEmail
 from .services import (
     bloqueio_ativo, conferir_codigo, emitir_codigo, limpar_falhas, mascarar_email,
     registrar_falha,
+)
+from configuracoes.services import (
+    conta_desativada_voluntariamente,
+    reativar_por_token,
+    solicitar_reativacao,
 )
 
 
@@ -38,7 +45,7 @@ def _muitos_pedidos(template, request, formulario):
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('home')
-    identidade = normalizar_usuario(request.POST.get('username', '')) if request.method == 'POST' else ''
+    identidade = normalizar_identidade_login(request.POST.get('username', '')) if request.method == 'POST' else ''
     if request.method == 'POST' and (
         bloqueio_ativo(request, 'login-ip') or bloqueio_ativo(request, 'login-usuario', identidade)
     ):
@@ -53,16 +60,25 @@ def login_view(request):
                 return redirect(destino)
             return redirect('home')
         if identidade and request.POST.get('password'):
-            usuario = User.objects.filter(username__iexact=identidade, is_active=False).first()
-            if usuario and usuario.check_password(request.POST['password']) and VerificacaoEmail.objects.filter(usuario=usuario, verificado_em__isnull=True).exists():
-                request.session['verificacao_usuario_id'] = usuario.pk
-                limpar_falhas(request, 'login-usuario', identidade)
-                return redirect('verificar_email')
+            filtro = Q(username__iexact=identidade)
+            if "@" in identidade:
+                filtro |= Q(email__iexact=identidade)
+            usuario = User.objects.filter(filtro, is_active=False).first()
+            if usuario and usuario.check_password(request.POST['password']):
+                if conta_desativada_voluntariamente(usuario):
+                    request.session["reativacao_usuario_id"] = usuario.pk
+                    limpar_falhas(request, 'login-usuario', identidade)
+                    return redirect("reativar_conta")
+                if VerificacaoEmail.objects.filter(usuario=usuario, verificado_em__isnull=True).exists():
+                    request.session['verificacao_usuario_id'] = usuario.pk
+                    limpar_falhas(request, 'login-usuario', identidade)
+                    return redirect('verificar_email')
             registrar_falha(request, 'login-ip', max_tentativas=20)
             registrar_falha(request, 'login-usuario', identidade)
     return render(request, 'login.html', {
         'formulario': formulario,
         'email_verificado': request.session.pop('email_verificado', False),
+        'conta_reativada': request.session.pop('conta_reativada', False),
     })
 
 
@@ -105,15 +121,21 @@ def verificar_email_view(request):
         request.session.pop('verificacao_usuario_id', None)
         return redirect('cadastro')
 
-    formulario = VerificacaoForm(request.POST if request.method == 'POST' and request.POST.get('acao') != 'reenviar' else None)
+    acao = request.POST.get('acao') if request.method == 'POST' else ''
+    formulario = VerificacaoForm(request.POST if request.method == 'POST' and not acao else None)
+    formulario_email = TrocarEmailVerificacaoForm(
+        verificacao_pendente.usuario,
+        request.POST if request.method == 'POST' and acao == 'trocar_email' else None,
+    )
     contexto = {
         'formulario': formulario,
+        'formulario_email': formulario_email,
         'email_mascarado': mascarar_email(verificacao_pendente.usuario.email),
     }
     if request.method == 'POST':
         if bloqueio_ativo(request, 'verificar-ip'):
             return _muitos_pedidos('verificar_email.html', request, formulario)
-        if request.POST.get('acao') == 'reenviar':
+        if acao == 'reenviar':
             try:
                 with transaction.atomic():
                     verificacao = VerificacaoEmail.objects.select_for_update().select_related('usuario').get(usuario_id=usuario_id)
@@ -128,6 +150,43 @@ def verificar_email_view(request):
                 }[resultado]
                 if resultado == 'limite':
                     return render(request, 'verificar_email.html', contexto, status=429)
+        elif acao == "trocar_email":
+            if formulario_email.is_valid():
+                try:
+                    with transaction.atomic():
+                        verificacao = VerificacaoEmail.objects.select_for_update().select_related('usuario').get(usuario_id=usuario_id)
+                        formulario_email.usuario = verificacao.usuario
+                        formulario_email.save()
+                        verificacao.codigo_hash = ""
+                        verificacao.expira_em = None
+                        verificacao.verificado_em = None
+                        verificacao.tentativas = 0
+                        verificacao.bloqueado_ate = None
+                        verificacao.ultimo_envio_em = None
+                        verificacao.janela_reenvio_em = None
+                        verificacao.reenvios_na_janela = 0
+                        verificacao.save(
+                            update_fields=[
+                                "codigo_hash",
+                                "expira_em",
+                                "verificado_em",
+                                "tentativas",
+                                "bloqueado_ate",
+                                "ultimo_envio_em",
+                                "janela_reenvio_em",
+                                "reenvios_na_janela",
+                            ]
+                        )
+                        resultado = emitir_codigo(verificacao)
+                except (SMTPException, OSError):
+                    contexto['erro'] = 'Não foi possível enviar o código agora. Tente novamente em instantes.'
+                else:
+                    contexto['email_mascarado'] = mascarar_email(verificacao.usuario.email)
+                    contexto['mensagem' if resultado == 'enviado' else 'erro'] = {
+                        'enviado': 'E-mail alterado. Enviamos um novo código.',
+                        'aguarde': 'Aguarde 60 segundos antes de solicitar outro código.',
+                        'limite': 'Limite de reenvios atingido. Aguarde até uma hora.',
+                    }[resultado]
         elif formulario.is_valid():
             with transaction.atomic():
                 verificacao = VerificacaoEmail.objects.select_for_update().select_related('usuario').get(usuario_id=usuario_id)
@@ -144,9 +203,50 @@ def verificar_email_view(request):
             }[resultado]
             if resultado == 'limite':
                 return render(request, 'verificar_email.html', contexto, status=429)
-        elif request.POST.get('acao') != 'reenviar':
+        elif acao not in {'reenviar', 'trocar_email'}:
             registrar_falha(request, 'verificar-ip', max_tentativas=20)
     return render(request, 'verificar_email.html', contexto)
+
+
+@login_not_required
+@sensitive_post_parameters()
+@require_http_methods(["GET", "POST"])
+def reativar_conta_view(request):
+    if request.user.is_authenticated:
+        return redirect("home")
+    usuario_id = request.session.get("reativacao_usuario_id")
+    usuario = User.objects.filter(pk=usuario_id, is_active=False).first()
+    if not usuario or not conta_desativada_voluntariamente(usuario):
+        request.session.pop("reativacao_usuario_id", None)
+        return redirect("login:login")
+
+    contexto = {
+        "email_mascarado": mascarar_email(usuario.email),
+    }
+    if request.method == "POST":
+        resultado = solicitar_reativacao(usuario, request)
+        if resultado == "enviado":
+            contexto["mensagem"] = "Enviamos um link de reativação para o seu e-mail."
+        elif resultado in {"aguarde", "limite"}:
+            contexto["erro"] = "Um link já foi solicitado recentemente."
+            status = 429 if resultado == "limite" else 200
+            return render(request, "reativar_conta.html", contexto, status=status)
+        else:
+            request.session.pop("reativacao_usuario_id", None)
+            return redirect("login:login")
+    return render(request, "reativar_conta.html", contexto)
+
+
+@login_not_required
+@require_http_methods(["GET"])
+def reativar_conta_token_view(request, token):
+    if request.user.is_authenticated:
+        return redirect("home")
+    if reativar_por_token(token):
+        request.session.pop("reativacao_usuario_id", None)
+        request.session["conta_reativada"] = True
+        return redirect("login:login")
+    return render(request, "reativar_conta_invalido.html", status=400)
 
 
 @method_decorator(login_not_required, name="dispatch")

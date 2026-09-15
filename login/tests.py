@@ -9,6 +9,7 @@ import os
 import re
 from unittest.mock import patch
 
+from configuracoes.models import PreferenciasUsuario
 from login.models import LimiteAutenticacao, VerificacaoEmail
 from login.services import mascarar_email, obter_ip_cliente
 from django.core import management
@@ -119,6 +120,62 @@ class LoginTests(TestCase):
         self.assertContains(response, 'Usuário ou senha inválidos.')
         self.assertNotIn('_auth_user_id', self.client.session)
 
+    def test_login_por_email_funciona_para_conta_ativa(self):
+        self.usuario.email = "ana@example.com"
+        self.usuario.save(update_fields=["email"])
+        response = self.client.post(
+            reverse("login:login"),
+            {"username": " ANA@example.com ", "password": "Nuvem!Laranja927"},
+        )
+        self.assertRedirects(response, reverse("home"))
+
+    def test_login_conta_desativada_senha_errada_nao_oferece_reativacao(self):
+        self.usuario.is_active = False
+        self.usuario.save(update_fields=["is_active"])
+        preferencias, _ = PreferenciasUsuario.objects.get_or_create(usuario=self.usuario)
+        preferencias.desativada_em = timezone.now()
+        preferencias.save(update_fields=["desativada_em"])
+
+        response = self.client.post(
+            reverse("login:login"),
+            {"username": "ana", "password": "errada"},
+        )
+
+        self.assertContains(response, "Usuário ou senha inválidos.")
+        self.assertNotIn("reativacao_usuario_id", self.client.session)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_login_conta_desativada_senha_correta_abre_tela_sem_enviar_email(self):
+        self.usuario.email = "ana@example.com"
+        self.usuario.is_active = False
+        self.usuario.save(update_fields=["email", "is_active"])
+        preferencias, _ = PreferenciasUsuario.objects.get_or_create(usuario=self.usuario)
+        preferencias.desativada_em = timezone.now()
+        preferencias.save(update_fields=["desativada_em"])
+
+        response = self.client.post(
+            reverse("login:login"),
+            {"username": "ana@example.com", "password": "Nuvem!Laranja927"},
+        )
+
+        self.assertRedirects(response, reverse("reativar_conta"))
+        self.assertNotIn("_auth_user_id", self.client.session)
+        self.assertEqual(self.client.session["reativacao_usuario_id"], self.usuario.pk)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_login_inativo_por_verificacao_nao_cai_em_reativacao(self):
+        self.usuario.is_active = False
+        self.usuario.save(update_fields=["is_active"])
+        VerificacaoEmail.objects.create(usuario=self.usuario)
+
+        response = self.client.post(
+            reverse("login:login"),
+            {"username": "ana", "password": "Nuvem!Laranja927"},
+        )
+
+        self.assertRedirects(response, reverse("verificar_email"))
+        self.assertNotIn("reativacao_usuario_id", self.client.session)
+
     def test_bloqueia_login_apos_tentativas_excessivas(self):
         for _ in range(5):
             self.client.post(reverse('login:login'), {'username': 'ana', 'password': 'errada'})
@@ -126,6 +183,134 @@ class LoginTests(TestCase):
         self.assertEqual(response.status_code, 429)
         self.assertContains(response, 'Tentativas excessivas', status_code=429)
         self.assertNotIn('_auth_user_id', self.client.session)
+
+
+@override_settings(MAILERS={"default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend"}})
+class ReativacaoContaTests(TestCase):
+    def setUp(self):
+        self.usuario = User.objects.create_user(
+            username="ana",
+            email="ana@example.com",
+            password="Nuvem!Laranja927",
+            is_active=False,
+        )
+        self.preferencias, _ = PreferenciasUsuario.objects.get_or_create(usuario=self.usuario)
+        self.preferencias.desativada_em = timezone.now()
+        self.preferencias.save(update_fields=["desativada_em"])
+        sessao = self.client.session
+        sessao["reativacao_usuario_id"] = self.usuario.pk
+        sessao.save()
+
+    def _token_email(self):
+        match = re.search(r"/conta/reativar/([^/\s]+)/", mail.outbox[-1].body)
+        self.assertIsNotNone(match)
+        return match.group(1)
+
+    def test_tela_exige_tentativa_valida_e_mascara_email(self):
+        outro = Client()
+        self.assertRedirects(outro.get(reverse("reativar_conta")), reverse("login:login"))
+
+        resposta = self.client.get(reverse("reativar_conta"))
+
+        self.assertContains(resposta, "a***@example.com")
+        self.assertNotContains(resposta, "ana@example.com")
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_post_envia_link_e_armazena_apenas_hash(self):
+        resposta = self.client.post(reverse("reativar_conta"))
+
+        self.assertContains(resposta, "Enviamos um link de reativação")
+        self.assertEqual(len(mail.outbox), 1)
+        token = self._token_email()
+        self.preferencias.refresh_from_db()
+        self.assertNotEqual(self.preferencias.token_reativacao_hash, "")
+        self.assertNotIn(token, self.preferencias.token_reativacao_hash)
+        self.assertIsNotNone(self.preferencias.token_reativacao_expira_em)
+
+    def test_post_de_reativacao_exige_csrf(self):
+        cliente = Client(enforce_csrf_checks=True)
+        sessao = cliente.session
+        sessao["reativacao_usuario_id"] = self.usuario.pk
+        sessao.save()
+
+        resposta = cliente.post(reverse("reativar_conta"))
+
+        self.assertEqual(resposta.status_code, 403)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_rate_limit_de_envio(self):
+        self.client.post(reverse("reativar_conta"))
+        resposta = self.client.post(reverse("reativar_conta"))
+
+        self.assertContains(resposta, "Um link já foi solicitado recentemente.")
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_token_valido_reativa_e_invalida_o_link(self):
+        self.client.post(reverse("reativar_conta"))
+        token = self._token_email()
+
+        resposta = self.client.get(reverse("reativar_conta_token", args=[token]))
+
+        self.assertRedirects(resposta, reverse("login:login"))
+        self.usuario.refresh_from_db()
+        self.preferencias.refresh_from_db()
+        self.assertTrue(self.usuario.is_active)
+        self.assertIsNone(self.preferencias.desativada_em)
+        self.assertEqual(self.preferencias.token_reativacao_hash, "")
+        self.assertIsNone(self.preferencias.token_reativacao_expira_em)
+        self.assertRedirects(
+            self.client.post(
+                reverse("login:login"),
+                {"username": "ana", "password": "Nuvem!Laranja927"},
+            ),
+            reverse("home"),
+        )
+        self.client.logout()
+        self.assertContains(
+            self.client.get(reverse("reativar_conta_token", args=[token])),
+            "inválido ou expirou",
+            status_code=400,
+        )
+
+    def test_token_expirado_ou_invalido_falha(self):
+        self.client.post(reverse("reativar_conta"))
+        token = self._token_email()
+        self.preferencias.refresh_from_db()
+        self.preferencias.token_reativacao_expira_em = timezone.now() - timedelta(seconds=1)
+        self.preferencias.save(update_fields=["token_reativacao_expira_em"])
+
+        self.assertContains(
+            self.client.get(reverse("reativar_conta_token", args=[token])),
+            "inválido ou expirou",
+            status_code=400,
+        )
+        self.assertContains(
+            self.client.get(reverse("reativar_conta_token", args=["token-inventado"])),
+            "inválido ou expirou",
+            status_code=400,
+        )
+        self.usuario.refresh_from_db()
+        self.assertFalse(self.usuario.is_active)
+
+    def test_novo_token_invalida_o_anterior(self):
+        self.client.post(reverse("reativar_conta"))
+        antigo = self._token_email()
+        self.preferencias.refresh_from_db()
+        self.preferencias.reativacao_ultimo_envio_em = timezone.now() - timedelta(minutes=6)
+        self.preferencias.save(update_fields=["reativacao_ultimo_envio_em"])
+
+        self.client.post(reverse("reativar_conta"))
+        novo = self._token_email()
+
+        self.assertContains(
+            self.client.get(reverse("reativar_conta_token", args=[antigo])),
+            "inválido ou expirou",
+            status_code=400,
+        )
+        self.assertRedirects(
+            self.client.get(reverse("reativar_conta_token", args=[novo])),
+            reverse("login:login"),
+        )
 
 
 @override_settings(MAILERS={
@@ -198,6 +383,34 @@ class VerificacaoEmailTests(TestCase):
         verificacao.save(update_fields=['ultimo_envio_em'])
         self.assertContains(self.client.post(reverse('verificar_email'), {'acao': 'reenviar'}), 'Limite de reenvios', status_code=429)
         self.assertContains(self.client.post(reverse('verificar_email'), {'codigo': antigo}), 'Código inválido')
+
+    def test_troca_email_pendente_envia_novo_codigo_e_invalida_antigo(self):
+        usuario = self.cadastrar()
+        antigo = self.codigo_email()
+
+        resposta = self.client.post(
+            reverse("verificar_email"),
+            {"acao": "trocar_email", "email": "novo@example.com"},
+        )
+
+        self.assertContains(resposta, "E-mail alterado. Enviamos um novo código.")
+        usuario.refresh_from_db()
+        self.assertEqual(usuario.email, "novo@example.com")
+        self.assertEqual(mail.outbox[-1].to, ["novo@example.com"])
+        self.assertContains(self.client.post(reverse("verificar_email"), {"codigo": antigo}), "Código inválido")
+
+    def test_troca_email_pendente_rejeita_email_em_uso(self):
+        User.objects.create_user(username="bia", email="bia@example.com", password="Nuvem!Laranja927")
+        usuario = self.cadastrar()
+
+        resposta = self.client.post(
+            reverse("verificar_email"),
+            {"acao": "trocar_email", "email": "BIA@example.com"},
+        )
+
+        self.assertContains(resposta, "Este e-mail já está em uso.")
+        usuario.refresh_from_db()
+        self.assertEqual(usuario.email, "ana@example.com")
 
     def test_codigo_bloqueado_apos_cinco_erros(self):
         usuario = self.cadastrar()

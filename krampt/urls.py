@@ -18,8 +18,13 @@ from django.contrib import admin
 from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path, include
-from login.views import cadastro_view, verificar_email_view
-from login.admin_views import testar_email_view
+from login.views import (
+    cadastro_view,
+    reativar_conta_token_view,
+    reativar_conta_view,
+    verificar_email_view,
+)
+from login.admin_views import apagar_usuarios_view, testar_email_view
 from . import views
 
 
@@ -30,7 +35,10 @@ urlpatterns = [
     path('mensagens/', include("mensagens.urls")),
     path('cadastro/', cadastro_view, name='cadastro'),
     path('verificar-email/', verificar_email_view, name='verificar_email'),
+    path('conta/reativar/', reativar_conta_view, name='reativar_conta'),
+    path('conta/reativar/<str:token>/', reativar_conta_token_view, name='reativar_conta_token'),
     path('admin/testar-email/', testar_email_view, name='testar_email'),
+    path('admin/apagar-usuarios/', apagar_usuarios_view, name='admin_apagar_usuarios'),
     path('admin/', admin.site.urls),
     path('perfil/', include("profile.urls")),
     path('login/', include("login.urls")),

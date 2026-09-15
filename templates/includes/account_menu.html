@@ -21,6 +21,10 @@
         <span class="material-symbols-outlined" aria-hidden="true">mail</span>
         <span>Testar e-mail</span>
       </a>
+      <a class="account-menu-item" href="{% url 'admin_apagar_usuarios' %}">
+        <span class="material-symbols-outlined" aria-hidden="true">person_remove</span>
+        <span>Apagar usuários</span>
+      </a>
     {% endif %}
     <div class="account-menu-divider" aria-hidden="true"></div>
     <form method="post" action="{% url 'logout' %}">

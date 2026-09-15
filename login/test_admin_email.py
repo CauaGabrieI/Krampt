@@ -71,3 +71,104 @@ class TestarEmailAdminTests(TestCase):
         resposta = cliente.post(reverse("testar_email"), {"email": "destino@example.com"})
         self.assertEqual(resposta.status_code, 403)
         self.assertEqual(len(mail.outbox), 0)
+
+
+class ApagarUsuariosAdminTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.admin = User.objects.create_user(username="admin", password="senha", is_staff=True)
+        cls.comum = User.objects.create_user(username="comum", password="senha")
+        cls.alvo = User.objects.create_user(username="alvo", email="alvo@example.com", password="senha")
+
+    def test_visitante_vai_para_login(self):
+        resposta = self.client.get(reverse("admin_apagar_usuarios"))
+        self.assertRedirects(resposta, "/login/?next=/admin/apagar-usuarios/")
+
+    def test_usuario_comum_nao_acessa_nem_apaga(self):
+        self.client.force_login(self.comum)
+        url = reverse("admin_apagar_usuarios")
+
+        self.assertEqual(self.client.get(url).status_code, 403)
+        self.assertEqual(
+            self.client.post(
+                url,
+                {
+                    "usuario_id": self.alvo.pk,
+                    "confirmacao": "alvo",
+                    "senha_admin": "senha",
+                },
+            ).status_code,
+            403,
+        )
+        self.assertTrue(User.objects.filter(pk=self.alvo.pk).exists())
+        self.assertNotContains(self.client.get(reverse("home")), "Apagar usuários")
+
+    def test_admin_apaga_usuario_com_confirmacao_e_senha(self):
+        self.client.force_login(self.admin)
+        url = reverse("admin_apagar_usuarios")
+
+        pagina = self.client.get(url)
+        self.assertContains(pagina, "Apagar usuários")
+        self.assertContains(self.client.get(reverse("home")), url)
+        resposta = self.client.post(
+            url,
+            {
+                "usuario_id": self.alvo.pk,
+                "confirmacao": "alvo",
+                "senha_admin": "senha",
+            },
+        )
+
+        self.assertRedirects(resposta, url)
+        self.assertFalse(User.objects.filter(pk=self.alvo.pk).exists())
+
+    def test_admin_nao_apaga_com_senha_ou_confirmacao_errada(self):
+        self.client.force_login(self.admin)
+        url = reverse("admin_apagar_usuarios")
+
+        self.client.post(
+            url,
+            {
+                "usuario_id": self.alvo.pk,
+                "confirmacao": "alvo",
+                "senha_admin": "errada",
+            },
+        )
+        self.assertTrue(User.objects.filter(pk=self.alvo.pk).exists())
+        self.client.post(
+            url,
+            {
+                "usuario_id": self.alvo.pk,
+                "confirmacao": "outro",
+                "senha_admin": "senha",
+            },
+        )
+        self.assertTrue(User.objects.filter(pk=self.alvo.pk).exists())
+
+    def test_admin_nao_apaga_a_si_mesmo_por_essa_tela(self):
+        self.client.force_login(self.admin)
+
+        self.client.post(
+            reverse("admin_apagar_usuarios"),
+            {
+                "usuario_id": self.admin.pk,
+                "confirmacao": "admin",
+                "senha_admin": "senha",
+            },
+        )
+
+        self.assertTrue(User.objects.filter(pk=self.admin.pk).exists())
+
+    def test_post_exige_csrf(self):
+        cliente = Client(enforce_csrf_checks=True)
+        cliente.force_login(self.admin)
+        resposta = cliente.post(
+            reverse("admin_apagar_usuarios"),
+            {
+                "usuario_id": self.alvo.pk,
+                "confirmacao": "alvo",
+                "senha_admin": "senha",
+            },
+        )
+        self.assertEqual(resposta.status_code, 403)
+        self.assertTrue(User.objects.filter(pk=self.alvo.pk).exists())

@@ -1,0 +1,6 @@
+Foi solicitada a reativação da sua conta no Krampt.
+
+Acesse o link abaixo para reativar sua conta:
+{{ link }}
+
+Este link expira em {{ expira_minutos }} minutos e pode ser usado apenas uma vez. Se não foi você quem solicitou, ignore esta mensagem.

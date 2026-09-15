@@ -699,6 +699,10 @@ textarea::placeholder {
 .auth-resend { margin-top: 16px; text-align: center; }
 .auth-resend button { padding: 7px 12px; border: 0; background: transparent; color: var(--primary-light); font-size: 12px; font-weight: 800; }
 .auth-resend button:hover { text-decoration: underline; }
+.auth-secondary-panel { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
+.auth-secondary-panel summary { color: var(--muted); font-size: 13px; font-weight: 800; cursor: pointer; }
+.auth-secondary-panel summary:hover { color: var(--primary-light); }
+.auth-secondary-panel .auth-form { margin-top: 16px; }
 
 .pagination { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 17px; border-top: 1px solid var(--border); }
 .pagination-link { padding: 7px 12px; border: 1px solid var(--border); background: var(--surface); color: var(--primary-light); font-size: 12px; font-weight: 700; }

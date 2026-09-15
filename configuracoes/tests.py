@@ -1,16 +1,20 @@
 import json
+import tempfile
+from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.contrib.sessions.backends.db import SessionStore
 from django.contrib.sessions.models import Session
 from django.core import mail
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from mensagens.models import Conversa, Mensagem
 from notificacoes.models import Notificacao
 from notificacoes.services import notificar
-from posts.models import Post
+from posts.models import Comentario, ImagemPost, Post
+from profile.models import Perfil
 from .models import PreferenciasUsuario
 
 User = get_user_model()
@@ -152,6 +156,7 @@ class ConfiguracoesTests(TestCase):
 
     def test_desativacao_exige_senha_atual_correta(self):
         url = reverse("configuracoes:secao", args=["conta"])
+        post = Post.objects.create(autor=self.caua, conteudo="Preservar")
         self.client.post(
             url,
             {"acao": "desativar", "confirmacao": "caua", "senha": "errada"},
@@ -164,7 +169,11 @@ class ConfiguracoesTests(TestCase):
             {"acao": "desativar", "confirmacao": "caua", "senha": "Senha!Forte123"},
         )
         self.caua.refresh_from_db()
+        preferencias = PreferenciasUsuario.objects.get(usuario=self.caua)
         self.assertFalse(self.caua.is_active)
+        self.assertIsNotNone(preferencias.desativada_em)
+        self.assertTrue(Post.objects.filter(pk=post.pk).exists())
+        self.assertNotIn("_auth_user_id", self.client.session)
 
     def test_exclusao_de_conta_exige_username_e_senha(self):
         usuario = User.objects.create_user(
@@ -182,6 +191,75 @@ class ConfiguracoesTests(TestCase):
             {"acao": "excluir_conta", "confirmacao": "excluir", "senha": "Senha!Forte123"},
         )
         self.assertFalse(User.objects.filter(pk=usuario.pk).exists())
+
+    def test_exclusao_remove_conversas_um_para_um(self):
+        conversa = Conversa.objects.create()
+        conversa.participantes.add(self.caua, self.ana)
+        Mensagem.objects.create(conversa=conversa, autor=self.caua, conteudo="Oi")
+
+        resposta = self.client.post(
+            reverse("configuracoes:secao", args=["conta"]),
+            {"acao": "excluir_conta", "confirmacao": "caua", "senha": "Senha!Forte123"},
+        )
+
+        self.assertRedirects(resposta, reverse("cadastro"))
+        self.assertFalse(Conversa.objects.filter(pk=conversa.pk).exists())
+
+    def test_desativacao_nao_remove_arquivos_e_exclusao_remove(self):
+        with tempfile.TemporaryDirectory() as pasta:
+            with override_settings(MEDIA_ROOT=pasta):
+                perfil = Perfil.objects.create(usuario=self.caua)
+                perfil.foto = SimpleUploadedFile("foto.webp", b"foto")
+                perfil.banner = SimpleUploadedFile("banner.webp", b"banner")
+                perfil.save(update_fields=["foto", "banner"])
+                post = Post.objects.create(
+                    autor=self.caua,
+                    conteudo="Com mídia",
+                    imagem=SimpleUploadedFile("post.webp", b"post"),
+                    audio=SimpleUploadedFile("post.mp3", b"audio"),
+                )
+                extra = ImagemPost.objects.create(
+                    post=post,
+                    imagem=SimpleUploadedFile("extra.webp", b"extra"),
+                )
+                comentario = Comentario.objects.create(
+                    post=post,
+                    autor=self.ana,
+                    conteudo="Comentário",
+                    imagem=SimpleUploadedFile("comentario.webp", b"comentario"),
+                    audio=SimpleUploadedFile("comentario.mp3", b"audio"),
+                )
+                nomes = [
+                    perfil.foto.name,
+                    perfil.banner.name,
+                    post.imagem.name,
+                    post.audio.name,
+                    extra.imagem.name,
+                    comentario.imagem.name,
+                    comentario.audio.name,
+                ]
+
+                self.client.post(
+                    reverse("configuracoes:secao", args=["conta"]),
+                    {"acao": "desativar", "confirmacao": "caua", "senha": "Senha!Forte123"},
+                )
+                for nome in nomes:
+                    self.assertTrue((Path(pasta) / nome).exists())
+
+                self.caua.is_active = True
+                self.caua.save(update_fields=["is_active"])
+                preferencias = PreferenciasUsuario.objects.get(usuario=self.caua)
+                preferencias.desativada_em = None
+                preferencias.save(update_fields=["desativada_em"])
+                self.client.force_login(self.caua)
+
+                self.client.post(
+                    reverse("configuracoes:secao", args=["conta"]),
+                    {"acao": "excluir_conta", "confirmacao": "caua", "senha": "Senha!Forte123"},
+                )
+
+                for nome in nomes:
+                    self.assertFalse((Path(pasta) / nome).exists())
 
     def test_sair_das_outras_sessoes_preserva_atual(self):
         outra = SessionStore()

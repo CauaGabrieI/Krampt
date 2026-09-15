@@ -28,6 +28,13 @@
 .email-test-success { margin-bottom: 20px; padding: 12px 14px; border: 1px solid #478763; background: var(--surface-raised); color: var(--text); }
 .email-test-error { color: #e16470; }
 .email-test-card > .email-test-error { margin-bottom: 20px; padding: 12px 14px; border: 1px solid #a34b55; }
+.admin-user-list { display: grid; gap: 18px; }
+.admin-user-row { display: grid; gap: 16px; padding-top: 18px; border-top: 1px solid var(--border); }
+.admin-user-row:first-child { padding-top: 0; border-top: 0; }
+.admin-user-row strong,
+.admin-user-row span { display: block; }
+.admin-user-row span { margin-top: 4px; color: var(--muted); font-size: 13px; }
+.admin-user-row .settings-danger-button { justify-self: start; margin-top: 6px; }
 @media (max-width: 600px) {
   .email-test-page { width: min(100% - 24px, 720px); margin-top: 24px; }
   .email-test-card { padding: 20px; }

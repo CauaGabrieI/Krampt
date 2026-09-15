@@ -13,6 +13,11 @@ def normalizar_usuario(valor):
     return ''.join(unicodedata.normalize('NFKC', valor).split()).lower()
 
 
+def normalizar_identidade_login(valor):
+    identidade = ''.join(unicodedata.normalize('NFKC', valor).split()).lower()
+    return identidade
+
+
 class CadastroForm(forms.Form):
     name = forms.CharField(label='Nome', max_length=150)
     username = forms.CharField(label='Usuário', max_length=150)
@@ -74,10 +79,14 @@ class LoginForm(forms.Form):
 
     def clean(self):
         dados = super().clean()
-        username = normalizar_usuario(dados.get('username', ''))
+        username = normalizar_identidade_login(dados.get('username', ''))
         senha = dados.get('password')
         if username and senha:
-            self.usuario = authenticate(self.request, username=username, password=senha)
+            login_username = username
+            if '@' in username:
+                usuario = User.objects.filter(email__iexact=username, is_active=True).first()
+                login_username = usuario.username if usuario else username
+            self.usuario = authenticate(self.request, username=login_username, password=senha)
             if self.usuario is None:
                 raise forms.ValidationError('Usuário ou senha inválidos.')
         elif not username and 'username' in dados:
@@ -96,6 +105,25 @@ class VerificacaoForm(forms.Form):
     )
 
 
+class TrocarEmailVerificacaoForm(forms.Form):
+    email = forms.EmailField(label="Novo e-mail", max_length=254)
+
+    def __init__(self, usuario, *args, **kwargs):
+        self.usuario = usuario
+        super().__init__(*args, **kwargs)
+
+    def clean_email(self):
+        email = self.cleaned_data["email"].strip().lower()
+        if User.objects.exclude(pk=self.usuario.pk).filter(email__iexact=email).exists():
+            raise forms.ValidationError("Este e-mail já está em uso.")
+        return email
+
+    def save(self):
+        self.usuario.email = self.cleaned_data["email"]
+        self.usuario.save(update_fields=["email"])
+        return self.usuario
+
+
 class RedefinirSenhaForm(PasswordResetForm):
     email = forms.EmailField(
         label="E-mail",
@@ -106,3 +134,13 @@ class RedefinirSenhaForm(PasswordResetForm):
 
 class TesteEmailForm(forms.Form):
     email = forms.EmailField(label="E-mail de destino", max_length=254)
+
+
+class AdminExcluirUsuarioForm(forms.Form):
+    usuario_id = forms.IntegerField(widget=forms.HiddenInput)
+    confirmacao = forms.CharField(label="Confirmar username", max_length=150)
+    senha_admin = forms.CharField(
+        label="Sua senha de admin",
+        strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}),
+    )
