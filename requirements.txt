@@ -6,3 +6,5 @@ sqlparse==0.6.0
 psycopg[binary]
 gunicorn==26.2.0
 whitenoise==6.12.0
+django-storages==1.14.6
+boto3==1.43.94

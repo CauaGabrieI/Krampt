@@ -40,5 +40,5 @@ urlpatterns = [
 
 ]
 
-if settings.DEBUG:
+if settings.DEBUG and not settings.R2_ENABLED:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

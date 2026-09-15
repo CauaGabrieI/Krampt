@@ -375,7 +375,7 @@ textarea::placeholder {
 .post-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .post-identity { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 7px; row-gap: 2px; min-width: 0; font-size: 13px; }
 .post-avatar-link { flex: 0 0 auto; align-self: flex-start; line-height: 0; }
-.post-author-link { display: inline-flex; flex-direction: column-reverse; align-items: flex-start; gap: 2px; color: inherit; }
+.post-author-link { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; color: inherit; }
 .post-author-link:hover strong, .comment-author:hover strong, .comment-reply-author:hover strong, .post-repost-label a:hover { text-decoration: underline; text-underline-offset: 2px; }
 .post-repost-label a { color: inherit; }
 .post-identity strong { color: var(--text); font-size: 14px; }

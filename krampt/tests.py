@@ -1,10 +1,57 @@
+import os
+import runpy
+from pathlib import Path
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
-from django.test import Client, TestCase
+from django.test import Client, SimpleTestCase, TestCase
 from django.urls import reverse
 
 from posts.models import Post
 from django.contrib.sessions.models import Session
 from profile.models import Perfil
+
+
+class StorageSettingsTests(SimpleTestCase):
+    settings_path = Path(__file__).with_name("settings.py")
+
+    def carregar_settings(self, variaveis=None):
+        ambiente = {"SECRET_KEY": "chave-de-teste", **(variaveis or {})}
+        with patch.dict(os.environ, ambiente, clear=True):
+            return runpy.run_path(str(self.settings_path))
+
+    def test_storage_local_e_fallback_sem_configuracao_completa_do_r2(self):
+        configuracao = self.carregar_settings({"AWS_ACCESS_KEY_ID": "incompleta"})
+
+        self.assertFalse(configuracao["R2_ENABLED"])
+        self.assertEqual(
+            configuracao["STORAGES"]["default"]["BACKEND"],
+            "django.core.files.storage.FileSystemStorage",
+        )
+        self.assertEqual(configuracao["MEDIA_ROOT"], configuracao["BASE_DIR"] / "media")
+
+    def test_r2_configura_s3_e_whitenoise_sem_media_root(self):
+        configuracao = self.carregar_settings({
+            "AWS_ACCESS_KEY_ID": "access-key",
+            "AWS_SECRET_ACCESS_KEY": "secret-key",
+            "AWS_STORAGE_BUCKET_NAME": "krampt-media",
+            "AWS_S3_ENDPOINT_URL": "https://conta.r2.cloudflarestorage.com",
+            "AWS_S3_CUSTOM_DOMAIN": "media.krampt.test",
+            "WHITENOISE": "true",
+        })
+
+        self.assertTrue(configuracao["R2_ENABLED"])
+        self.assertEqual(configuracao["STORAGES"]["default"]["BACKEND"], "storages.backends.s3.S3Storage")
+        self.assertEqual(
+            configuracao["STORAGES"]["staticfiles"]["BACKEND"],
+            "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        )
+        self.assertEqual(configuracao["AWS_S3_REGION_NAME"], "auto")
+        self.assertFalse(configuracao["AWS_S3_FILE_OVERWRITE"])
+        self.assertIsNone(configuracao["AWS_DEFAULT_ACL"])
+        self.assertFalse(configuracao["AWS_QUERYSTRING_AUTH"])
+        self.assertEqual(configuracao["AWS_S3_CUSTOM_DOMAIN"], "media.krampt.test")
+        self.assertNotIn("MEDIA_ROOT", configuracao)
 
 
 class AutenticacaoTests(TestCase):

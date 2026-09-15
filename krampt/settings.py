@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'storages',
     'profile',
     'login',
     'posts',
@@ -180,22 +181,51 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
 
 STATICFILES_DIRS = [
     BASE_DIR / "static",
     ("imgs", BASE_DIR / "imgs"),
 ]
 
-# Em produção (WHITENOISE=true) os arquivos estáticos são servidos pelo
-# WhiteNoise, compilados e com nome hasheado via collectstatic --noinput.
-if os.environ.get("WHITENOISE", "").lower() == "true":
-    STORAGES = {
-        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-        "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
-        },
-    }
+R2_REQUIRED_ENV_VARS = (
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "AWS_STORAGE_BUCKET_NAME",
+    "AWS_S3_ENDPOINT_URL",
+)
+R2_ENABLED = all(os.environ.get(nome) for nome in R2_REQUIRED_ENV_VARS)
+WHITENOISE_ENABLED = os.environ.get("WHITENOISE", "").lower() == "true"
+
+STORAGES = {
+    "default": {
+        "BACKEND": (
+            "storages.backends.s3.S3Storage"
+            if R2_ENABLED
+            else "django.core.files.storage.FileSystemStorage"
+        ),
+    },
+    "staticfiles": {
+        "BACKEND": (
+            "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            if WHITENOISE_ENABLED
+            else "django.contrib.staticfiles.storage.StaticFilesStorage"
+        ),
+    },
+}
+
+if R2_ENABLED:
+    AWS_ACCESS_KEY_ID = os.environ["AWS_ACCESS_KEY_ID"]
+    AWS_SECRET_ACCESS_KEY = os.environ["AWS_SECRET_ACCESS_KEY"]
+    AWS_STORAGE_BUCKET_NAME = os.environ["AWS_STORAGE_BUCKET_NAME"]
+    AWS_S3_ENDPOINT_URL = os.environ["AWS_S3_ENDPOINT_URL"]
+    AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME", "auto")
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = False
+    if os.environ.get("AWS_S3_CUSTOM_DOMAIN"):
+        AWS_S3_CUSTOM_DOMAIN = os.environ["AWS_S3_CUSTOM_DOMAIN"]
+else:
+    MEDIA_ROOT = BASE_DIR / 'media'
 
 
 # Email
