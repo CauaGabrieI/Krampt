@@ -1,15 +1,14 @@
 {% extends "base.html" %}
 {% load static %}
 {% block title %}Notificações | Krampt{% endblock %}
+{% block body_class %}notifications-page{% endblock %}
 {% block extra_head %}
-  <link rel="stylesheet" href="{% static 'css/notificacoes.css' %}">
+  <link rel="stylesheet" href="{% static 'css/notificacoes.css' %}?v=no-left-rail-2">
 {% endblock %}
 {% block content %}
   {% include "includes/site_header.html" with active_page="notificacoes" %}
 
   <div class="app-shell">
-    {% include "includes/explore_rail.html" %}
-
     <main class="feed" id="notificacoes">
       <div class="feed-heading">
         <h1>Notificações</h1>

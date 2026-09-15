@@ -1,3 +1,26 @@
+.notifications-page {
+  display: flex;
+  flex-direction: column;
+  height: var(--viewport-height);
+  overflow: hidden;
+}
+.notifications-page .site-header { flex: 0 0 auto; }
+.notifications-page .app-shell {
+  grid-template-columns: minmax(0, 940px);
+  justify-content: center;
+  flex: 1;
+  width: 100%;
+  max-width: 988px;
+  min-height: 0;
+  padding: 16px 24px;
+}
+.notifications-page .feed {
+  height: 100%;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--primary);
+  background: var(--surface);
+}
 .notificacoes-list { display: grid; }
 .notificacao-item {
   display: flex;
@@ -16,4 +39,13 @@ a.notificacao-item:hover { background: var(--surface-raised); }
 .notificacao-text { min-width: 0; }
 .notificacao-text p { margin: 0; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
 .notificacao-text span { color: var(--subtle); font-size: 12px; }
+
+@media (max-width: 720px) {
+  .notifications-page .app-shell { padding: 0; }
+  .notifications-page .feed {
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+  }
+}
 .notify-empty { padding: 44px 24px; }
