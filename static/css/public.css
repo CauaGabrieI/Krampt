@@ -331,3 +331,28 @@
   .public-document { width: min(100% - 28px, 820px); padding-top: 58px; }
   .public-footer-inner { width: min(100% - 28px, 1180px); }
 }
+.auth-terms {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+  cursor: pointer;
+}
+.auth-terms input {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--primary);
+}
+.auth-terms a {
+  color: var(--primary-light);
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.auth-terms a:hover {
+  color: var(--text);
+}

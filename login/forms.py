@@ -24,6 +24,13 @@ class CadastroForm(forms.Form):
     email = forms.EmailField(label='E-mail', max_length=254)
     password = forms.CharField(label='Senha', strip=False, widget=forms.PasswordInput)
     password_confirm = forms.CharField(label='Confirmar senha', strip=False, widget=forms.PasswordInput)
+    aceitou_termos = forms.BooleanField(
+        label='Termos de Uso e Política de Privacidade',
+        required=True,
+        error_messages={
+            'required': 'Você precisa aceitar os Termos de Uso e a Política de Privacidade para criar a conta.',
+        },
+    )
 
     def clean_name(self):
         nome = ' '.join(unicodedata.normalize('NFKC', self.cleaned_data['name']).split())

@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Criar conta | Krampt  {% include "includes/public_footer.html" %}
-{% endblock %}
+{% block title %}Criar conta | Krampt{% endblock %}
 {% block extra_head %}
   <link rel="stylesheet" href="{% static 'css/public.css' %}?v=public-site-1">
 {% endblock %}
@@ -65,12 +64,33 @@
           <label for="password_confirm">Confirmar senha</label>
         </div>
         <p class="password-help">Senhas comuns ou parecidas com seus dados também serão recusadas.</p>
+
+        <label class="auth-terms" for="aceitou_termos">
+          <input
+            type="checkbox"
+            id="aceitou_termos"
+            name="aceitou_termos"
+            value="1"
+            {% if formulario.aceitou_termos.value %}checked{% endif %}
+            required
+          >
+          <span>
+            Li e aceito os
+            <a href="{% url 'termos' %}" target="_blank" rel="noopener">Termos de Uso</a>,
+            a
+            <a href="{% url 'privacidade' %}" target="_blank" rel="noopener">Política de Privacidade</a>
+            e as
+            <a href="{% url 'diretrizes' %}" target="_blank" rel="noopener">Diretrizes da Comunidade</a>.
+          </span>
+        </label>
+
         <button class="primary-button" type="submit">Criar conta</button>
       </form>
 
       <p class="auth-switch">Já tem uma conta? <a href="{% url 'login:login' %}">Entrar</a></p>
     </main>
   </div>
+  {% include "includes/public_footer.html" %}
 {% endblock %}
 {% block scripts %}
   <script src="{% static 'js/password_strength.js' %}" defer></script>

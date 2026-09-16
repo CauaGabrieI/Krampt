@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Entrar | Krampt  {% include "includes/public_footer.html" %}
-{% endblock %}
+{% block title %}Entrar | Krampt{% endblock %}
 {% block extra_head %}
   <link rel="stylesheet" href="{% static 'css/public.css' %}?v=public-site-1">
 {% endblock %}
@@ -58,4 +57,5 @@
       <p class="auth-switch">Ainda não tem uma conta? <a href="{% url 'cadastro' %}">Criar conta</a></p>
     </main>
   </div>
+  {% include "includes/public_footer.html" %}
 {% endblock %}

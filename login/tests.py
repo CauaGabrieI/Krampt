@@ -20,7 +20,7 @@ User = get_user_model()
 
 class CadastroTests(TestCase):
     def dados(self, **alteracoes):
-        dados = dict(name='  Ana   Maria  ', username=' an a\t ', email=' ANA@EXAMPLE.COM ', password='Nuvem!Laranja927', password_confirm='Nuvem!Laranja927')
+        dados = dict(name='  Ana   Maria  ', username=' an a\t ', email=' ANA@EXAMPLE.COM ', password='Nuvem!Laranja927', password_confirm='Nuvem!Laranja927', aceitou_termos='1')
         dados.update(alteracoes)
         return dados
 
@@ -35,6 +35,29 @@ class CadastroTests(TestCase):
         self.assertTrue(usuario.check_password('Nuvem!Laranja927'))
         self.assertFalse(usuario.is_active)
         self.assertTrue(VerificacaoEmail.objects.filter(usuario=usuario, verificado_em__isnull=True).exists())
+
+    def test_exige_aceite_dos_termos_no_backend(self):
+        dados = self.dados()
+        dados.pop('aceitou_termos')
+
+        response = self.client.post(reverse('cadastro'), dados)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('aceitou_termos', response.context['formulario'].errors)
+        self.assertContains(
+            response,
+            'Você precisa aceitar os Termos de Uso e a Política de Privacidade para criar a conta.',
+        )
+        self.assertFalse(User.objects.exists())
+
+    def test_cadastro_exibe_checkbox_e_links_dos_termos(self):
+        response = self.client.get(reverse('cadastro'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="aceitou_termos"', html=False)
+        self.assertContains(response, reverse('termos'))
+        self.assertContains(response, reverse('privacidade'))
+        self.assertContains(response, reverse('diretrizes'))
 
     def test_rejeita_campos_invalidos_no_backend(self):
         casos = [dict(password_confirm='OutraSenha'), dict(password_confirm=''), dict(email='invalido'), dict(email='ana @example.com'), dict(username='!!!'), dict(username='   '), dict(name=' \t '), dict(username='a' * 151), dict(email='a' * 255 + '@example.com')]
@@ -350,6 +373,7 @@ class VerificacaoEmailTests(TestCase):
         response = client.post(reverse('cadastro'), {
             'name': 'Ana Maria', 'username': username, 'email': email,
             'password': 'Nuvem!Laranja927', 'password_confirm': 'Nuvem!Laranja927',
+            'aceitou_termos': '1',
         })
         self.assertRedirects(response, reverse('verificar_email'))
         return User.objects.get(username=username)
@@ -461,6 +485,7 @@ class VerificacaoEmailTests(TestCase):
             response = self.client.post(reverse('cadastro'), {
                 'name': 'Ana Maria', 'username': 'ana', 'email': 'ana@example.com',
                 'password': 'Nuvem!Laranja927', 'password_confirm': 'Nuvem!Laranja927',
+                'aceitou_termos': '1',
             })
         self.assertContains(response, 'Não foi possível enviar o código')
         self.assertFalse(User.objects.exists())
@@ -472,6 +497,7 @@ class VerificacaoEmailTests(TestCase):
         dados = {
             'name': 'Ana Maria', 'username': 'ana', 'email': 'ana@example.com',
             'password': 'Nuvem!Laranja927', 'password_confirm': 'Nuvem!Laranja927',
+            'aceitou_termos': '1',
             'csrfmiddlewaretoken': str(response.context['csrf_token']),
         }
         client.post(reverse('cadastro'), dados)
@@ -495,6 +521,7 @@ class VerificacaoEmailMascaradoTests(TestCase):
         self.client.post(reverse("cadastro"), {
             "name": "Ana Maria", "username": "ana", "email": "ana@example.com",
             "password": "Nuvem!Laranja927", "password_confirm": "Nuvem!Laranja927",
+            'aceitou_termos': '1',
         })
         resposta = self.client.get(reverse("verificar_email"))
         self.assertContains(resposta, "a***@example.com")
@@ -667,6 +694,7 @@ class UsernameCanonicoTests(TestCase):
         self.client.post(reverse('cadastro'), {
             'name': 'Ana Maria', 'username': ' AnA ', 'email': 'ana@example.com',
             'password': 'Nuvem!Laranja927', 'password_confirm': 'Nuvem!Laranja927',
+            'aceitou_termos': '1',
         })
         self.assertEqual(User.objects.get().username, 'ana')
 
@@ -680,6 +708,7 @@ class UsernameCanonicoTests(TestCase):
         resposta = self.client.post(reverse('cadastro'), {
             'name': 'Ana', 'username': 'ana', 'email': 'outro@example.com',
             'password': 'Nuvem!Laranja927', 'password_confirm': 'Nuvem!Laranja927',
+            'aceitou_termos': '1',
         })
         self.assertTrue(resposta.context['formulario'].errors)
         self.assertEqual(User.objects.count(), 1)
