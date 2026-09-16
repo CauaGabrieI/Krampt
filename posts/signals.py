@@ -1,7 +1,4 @@
-import logging
-
-from django.core.files.storage import default_storage
-from django.db import transaction
+from outbox.services import enfileirar_exclusao_arquivos
 from django.db.models.signals import post_delete, post_save, pre_delete
 from django.dispatch import receiver
 from django.utils.text import slugify
@@ -9,8 +6,6 @@ from django.utils.text import slugify
 from .models import Comentario, Hashtag, ImagemPost, Post
 from .services import hashtags_do_texto, limpeza_automatica_de_midias_suspensa
 
-
-logger = logging.getLogger(__name__)
 
 _CAMINHOS = "_arquivos_a_excluir"
 
@@ -32,16 +27,7 @@ def _agendar_exclusao_de_arquivos(instance, **kwargs):
     if not caminhos:
         return
 
-    def excluir():
-        for nome in caminhos:
-            if not nome:
-                continue
-            try:
-                default_storage.delete(nome)
-            except Exception as erro:  # noqa: BLE001
-                logger.warning("Falha ao excluir arquivo %s do armazenamento (%s)", nome, erro)
-
-    transaction.on_commit(excluir)
+    enfileirar_exclusao_arquivos(caminhos)
 
 
 @receiver(post_save, sender=Post)

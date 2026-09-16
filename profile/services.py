@@ -5,6 +5,8 @@ from django.core.files.base import ContentFile
 from django.db import transaction
 from PIL import Image, ImageOps
 
+from outbox.services import enfileirar_exclusao_arquivos
+
 from .models import Perfil
 
 User = get_user_model()
@@ -77,8 +79,12 @@ def salvar_edicao_perfil(usuario, perfil, dados):
         elif dados["remover_banner"]:
             perfil.banner = ""
         perfil.save()
-    if foto_anterior and foto_anterior != perfil.foto.name:
-        perfil.foto.storage.delete(foto_anterior)
-    if banner_anterior and banner_anterior != perfil.banner.name:
-        perfil.banner.storage.delete(banner_anterior)
+
+        antigos = []
+        if foto_anterior and foto_anterior != perfil.foto.name:
+            antigos.append(foto_anterior)
+        if banner_anterior and banner_anterior != perfil.banner.name:
+            antigos.append(banner_anterior)
+        enfileirar_exclusao_arquivos(antigos)
+
     return perfil

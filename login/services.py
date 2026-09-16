@@ -4,12 +4,12 @@ import secrets
 from datetime import timedelta
 from hmac import compare_digest
 
-from django.conf import settings
-from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.crypto import salted_hmac
+
+from outbox.services import enfileirar_email
 
 from .models import LimiteAutenticacao, VerificacaoEmail
 
@@ -66,15 +66,22 @@ def mascarar_email(email):
     return f"{local[0]}***@{dominio}" if local else f"***@{dominio}"
 
 
-def _enviar_email(destinatario, assunto, contexto):
-    texto = render_to_string("emails/verificacao_email.txt", contexto).strip()
-    html = render_to_string("emails/verificacao_email.html", contexto).strip()
-    mensagem = EmailMultiAlternatives(
-        assunto, texto, settings.DEFAULT_FROM_EMAIL, [destinatario]
+def _enviar_email(destinatario, assunto, contexto, *, chave=None):
+    texto = render_to_string(
+        "emails/verificacao_email.txt",
+        contexto,
+    ).strip()
+    html = render_to_string(
+        "emails/verificacao_email.html",
+        contexto,
+    ).strip()
+    return enfileirar_email(
+        destinatario,
+        assunto,
+        texto,
+        html=html,
+        chave=chave,
     )
-    mensagem.attach_alternative(html, "text/html")
-    if mensagem.send() != 1:
-        raise OSError("O serviço de e-mail não confirmou o envio.")
 
 
 def bloqueio_ativo(request, proposito, identidade=""):
@@ -107,36 +114,65 @@ def limpar_falhas(request, proposito, identidade=""):
 
 
 def emitir_codigo(verificacao):
-    agora = timezone.now()
-    if verificacao.ultimo_envio_em and agora - verificacao.ultimo_envio_em < INTERVALO_REENVIO:
-        return "aguarde"
-    if not verificacao.janela_reenvio_em or agora - verificacao.janela_reenvio_em >= JANELA_REENVIO:
-        verificacao.janela_reenvio_em = agora
-        verificacao.reenvios_na_janela = 0
-    if verificacao.ultimo_envio_em and verificacao.reenvios_na_janela >= 3:
-        return "limite"
+    with transaction.atomic():
+        verificacao = (
+            VerificacaoEmail.objects.select_for_update()
+            .select_related("usuario")
+            .get(pk=verificacao.pk)
+        )
+        agora = timezone.now()
+        if (
+            verificacao.ultimo_envio_em
+            and agora - verificacao.ultimo_envio_em < INTERVALO_REENVIO
+        ):
+            return "aguarde"
+        if (
+            not verificacao.janela_reenvio_em
+            or agora - verificacao.janela_reenvio_em >= JANELA_REENVIO
+        ):
+            verificacao.janela_reenvio_em = agora
+            verificacao.reenvios_na_janela = 0
+        if (
+            verificacao.ultimo_envio_em
+            and verificacao.reenvios_na_janela >= 3
+        ):
+            return "limite"
 
-    codigo = f"{secrets.randbelow(1_000_000):06d}"
-    novo_hash = _resumo(f"{verificacao.usuario_id}:{codigo}", "codigo-email")
-    # Mesmo uma repetição aleatória de código não deve reutilizar o código anterior.
-    while novo_hash == verificacao.codigo_hash:
         codigo = f"{secrets.randbelow(1_000_000):06d}"
-        novo_hash = _resumo(f"{verificacao.usuario_id}:{codigo}", "codigo-email")
+        novo_hash = _resumo(
+            f"{verificacao.usuario_id}:{codigo}",
+            "codigo-email",
+        )
+        while novo_hash == verificacao.codigo_hash:
+            codigo = f"{secrets.randbelow(1_000_000):06d}"
+            novo_hash = _resumo(
+                f"{verificacao.usuario_id}:{codigo}",
+                "codigo-email",
+            )
 
-    _enviar_email(
-        verificacao.usuario.email,
-        "Seu código de verificação do Krampt",
-        {"codigo": codigo},
-    )
-    ja_enviado = bool(verificacao.ultimo_envio_em)
-    verificacao.codigo_hash = novo_hash
-    verificacao.expira_em = agora + TEMPO_CODIGO
-    verificacao.ultimo_envio_em = agora
-    verificacao.reenvios_na_janela += 1 if ja_enviado else 0
-    if not verificacao.bloqueado_ate or verificacao.bloqueado_ate <= agora:
-        verificacao.tentativas = 0
-        verificacao.bloqueado_ate = None
-    verificacao.save()
+        ja_enviado = bool(verificacao.ultimo_envio_em)
+        verificacao.codigo_hash = novo_hash
+        verificacao.expira_em = agora + TEMPO_CODIGO
+        verificacao.ultimo_envio_em = agora
+        verificacao.reenvios_na_janela += 1 if ja_enviado else 0
+        if (
+            not verificacao.bloqueado_ate
+            or verificacao.bloqueado_ate <= agora
+        ):
+            verificacao.tentativas = 0
+            verificacao.bloqueado_ate = None
+        verificacao.save()
+
+        _enviar_email(
+            verificacao.usuario.email,
+            "Seu código de verificação do Krampt",
+            {"codigo": codigo},
+            chave=(
+                f"verificacao-email:"
+                f"{verificacao.usuario_id}:{novo_hash}"
+            ),
+        )
+
     return "enviado"
 
 

@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -76,6 +77,7 @@ INSTALLED_APPS = [
     'posts',
     'notificacoes',
     'mensagens',
+    'outbox.apps.OutboxConfig',
     'configuracoes.apps.ConfiguracoesConfig',
 ]
 
@@ -228,6 +230,19 @@ if R2_ENABLED:
         AWS_S3_CUSTOM_DOMAIN = os.environ["AWS_S3_CUSTOM_DOMAIN"]
 else:
     MEDIA_ROOT = BASE_DIR / 'media'
+
+
+# Transactional Outbox
+OUTBOX_EAGER = os.environ.get(
+    "OUTBOX_EAGER",
+    "true" if "test" in sys.argv else "false",
+).lower() == "true"
+OUTBOX_POLL_SECONDS = float(os.environ.get("OUTBOX_POLL_SECONDS", "1"))
+OUTBOX_LEASE_SECONDS = int(os.environ.get("OUTBOX_LEASE_SECONDS", "60"))
+OUTBOX_MAX_ATTEMPTS = int(os.environ.get("OUTBOX_MAX_ATTEMPTS", "10"))
+OUTBOX_RETRY_MAX_SECONDS = int(
+    os.environ.get("OUTBOX_RETRY_MAX_SECONDS", "300")
+)
 
 
 # Email

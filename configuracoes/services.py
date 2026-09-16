@@ -3,9 +3,7 @@ import secrets
 from datetime import timedelta
 from hmac import compare_digest
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -14,6 +12,10 @@ from django.views.decorators.debug import sensitive_variables
 
 from login.services import _resumo
 from mensagens.models import Conversa
+from outbox.services import (
+    enfileirar_email,
+    enfileirar_exclusao_arquivos,
+)
 from posts.models import Comentario, ImagemPost, Post
 from posts.services import suspender_limpeza_automatica_de_midias
 from profile.models import Perfil
@@ -68,26 +70,41 @@ def _hash_token(usuario_id, token):
     return _resumo(f"{usuario_id}:{token}", "reativacao-conta")
 
 
-def _enviar_email_reativacao(usuario, request, token):
+def _enviar_email_reativacao(
+    usuario,
+    request,
+    token,
+    *,
+    chave=None,
+):
     link = request.build_absolute_uri(
-        reverse("reativar_conta_token", kwargs={"token": token})
+        reverse(
+            "reativar_conta_token",
+            kwargs={"token": token},
+        )
     )
     contexto = {
         "usuario": usuario,
         "link": link,
-        "expira_minutos": int(TEMPO_TOKEN_REATIVACAO.total_seconds() // 60),
+        "expira_minutos": int(
+            TEMPO_TOKEN_REATIVACAO.total_seconds() // 60
+        ),
     }
-    texto = render_to_string("emails/reativacao_conta.txt", contexto).strip()
-    html = render_to_string("emails/reativacao_conta.html", contexto).strip()
-    mensagem = EmailMultiAlternatives(
+    texto = render_to_string(
+        "emails/reativacao_conta.txt",
+        contexto,
+    ).strip()
+    html = render_to_string(
+        "emails/reativacao_conta.html",
+        contexto,
+    ).strip()
+    return enfileirar_email(
+        usuario.email,
         "Reativação da sua conta Krampt",
         texto,
-        settings.DEFAULT_FROM_EMAIL,
-        [usuario.email],
+        html=html,
+        chave=chave,
     )
-    mensagem.attach_alternative(html, "text/html")
-    if mensagem.send() != 1:
-        raise OSError("O serviço de e-mail não confirmou o envio.")
 
 
 @sensitive_variables("token", "token_hash")
@@ -122,7 +139,6 @@ def solicitar_reativacao(usuario, request):
 
         token = secrets.token_urlsafe(32)
         token_hash = _hash_token(usuario.pk, token)
-        _enviar_email_reativacao(usuario, request, token)
 
         preferencias.token_reativacao_hash = token_hash
         preferencias.token_reativacao_expira_em = agora + TEMPO_TOKEN_REATIVACAO
@@ -136,6 +152,15 @@ def solicitar_reativacao(usuario, request):
                 "reativacao_janela_envio_em",
                 "reativacao_envios_na_janela",
             ]
+        )
+        _enviar_email_reativacao(
+            preferencias.usuario,
+            request,
+            token,
+            chave=(
+                f"reativacao-conta:"
+                f"{preferencias.usuario_id}:{token_hash}"
+            ),
         )
     return "enviado"
 
@@ -227,26 +252,38 @@ def excluir_conta_com_limpeza(usuario):
     arquivos = {}
     for arquivo in arquivos_da_conta(usuario):
         chave = (id(arquivo.storage), arquivo.name)
-        arquivos[chave] = (arquivo, _arquivo_tem_outro_dono(arquivo, usuario_pk))
+        arquivos[chave] = (
+            arquivo,
+            _arquivo_tem_outro_dono(arquivo, usuario_pk),
+        )
+
+    nomes_para_excluir = [
+        arquivo.name
+        for arquivo, compartilhado in arquivos.values()
+        if not compartilhado
+    ]
+
     try:
         with suspender_limpeza_automatica_de_midias():
             with transaction.atomic():
-                usuario_bloqueado = User.objects.select_for_update().get(pk=usuario_pk)
-                Conversa.objects.filter(participantes=usuario_bloqueado).delete()
+                usuario_bloqueado = (
+                    User.objects.select_for_update()
+                    .get(pk=usuario_pk)
+                )
+                if nomes_para_excluir:
+                    enfileirar_exclusao_arquivos(
+                        nomes_para_excluir,
+                        chave=f"excluir-conta:{usuario_pk}",
+                    )
+                Conversa.objects.filter(
+                    participantes=usuario_bloqueado
+                ).delete()
                 usuario_bloqueado.delete()
     except Exception:
-        logger.exception("Falha ao excluir conta do usuário %s.", usuario_pk)
+        logger.exception(
+            "Falha ao excluir conta do usuário %s.",
+            usuario_pk,
+        )
         raise
 
-    falhas = []
-    for arquivo, compartilhado in arquivos.values():
-        try:
-            if not compartilhado:
-                arquivo.storage.delete(arquivo.name)
-        except Exception:
-            falhas.append(arquivo.name)
-            logger.exception(
-                "Conta %s excluída, mas um arquivo de mídia não pôde ser removido.",
-                usuario_pk,
-            )
-    return tuple(falhas)
+    return ()

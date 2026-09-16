@@ -37,10 +37,34 @@ conversas aumenta.
 Os testes usam limite máximo, não um número exato, para evitar acoplamento
 desnecessário a pequenas diferenças entre SQLite e PostgreSQL.
 
-## Próximo limite arquitetural
+## Transactional Outbox
 
-E-mail, processamento pesado de mídia e integrações externas não devem ser
-colocados dentro de uma falsa "transação distribuída". Quando houver necessidade,
-o próximo passo é uma **Transactional Outbox** no PostgreSQL e um worker
-assíncrono. O outbox deve ser introduzido apenas junto com o processo de consumo,
-retry e observabilidade, para não adicionar infraestrutura sem benefício real.
+E-mail e remoção de arquivos externos usam uma Outbox persistida no mesmo
+PostgreSQL das operações de negócio:
+
+```text
+transaction.atomic
+    ├── alteração de negócio
+    └── EventoOutbox
+             ↓ commit
+          worker
+             ├── e-mail
+             └── storage/R2
+```
+
+O worker usa lease para recuperar eventos abandonados, retry com backoff e
+`select_for_update(skip_locked=True)` quando o banco suporta. Depois do envio de
+e-mail, o payload é apagado para não reter código/token temporário.
+
+Em testes, `OUTBOX_EAGER` é ativado para manter feedback imediato e facilitar
+assertivas. Em produção ele fica desligado por padrão e o worker deve rodar como
+processo separado:
+
+```bash
+python manage.py process_outbox
+```
+
+A Outbox oferece entrega **pelo menos uma vez**. Handlers precisam permanecer
+idempotentes sempre que possível; exclusão de arquivo já é naturalmente
+idempotente e e-mails usam uma chave de evento para impedir criação duplicada
+da mesma intenção.

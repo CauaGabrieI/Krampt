@@ -14,6 +14,7 @@ from django.urls import reverse
 from mensagens.models import Conversa, Mensagem
 from notificacoes.models import Notificacao
 from notificacoes.services import notificar
+from outbox.models import EventoOutbox
 from posts.models import Comentario, ImagemPost, Post, PostSemInteresse, UsuarioBloqueado, UsuarioSilenciado
 from profile.models import Perfil
 from .models import PreferenciasUsuario
@@ -394,18 +395,34 @@ class ConfiguracoesTests(TestCase):
         excluir.assert_not_called()
 
     def test_falha_no_storage_nao_deixa_conta_fantasma_na_sessao(self):
-        perfil = Perfil.objects.create(usuario=self.caua, foto="fotos_perfil/foto.webp")
+        perfil = Perfil.objects.create(
+            usuario=self.caua,
+            foto="fotos_perfil/foto.webp",
+        )
 
-        with self.assertLogs("configuracoes.services", level="ERROR"):
-            with patch.object(perfil.foto.storage, "delete", side_effect=OSError("storage fora")):
+        with self.assertLogs("outbox.services", level="WARNING"):
+            with patch.object(
+                perfil.foto.storage,
+                "delete",
+                side_effect=OSError("storage fora"),
+            ):
                 resposta = self.client.post(
                     reverse("configuracoes:secao", args=["conta"]),
-                    {"acao": "excluir_conta", "confirmacao": "caua", "senha": "Senha!Forte123"},
+                    {
+                        "acao": "excluir_conta",
+                        "confirmacao": "caua",
+                        "senha": "Senha!Forte123",
+                    },
                 )
 
         self.assertRedirects(resposta, reverse("cadastro"))
         self.assertFalse(User.objects.filter(pk=self.caua.pk).exists())
         self.assertNotIn("_auth_user_id", self.client.session)
+        evento = EventoOutbox.objects.get(tipo="storage.excluir")
+        self.assertIsNone(evento.processado_em)
+        self.assertIsNone(evento.descartado_em)
+        self.assertGreater(evento.tentativas, 0)
+        self.assertIn("storage fora", evento.ultimo_erro)
 
     def test_sair_das_outras_sessoes_preserva_atual(self):
         outra = SessionStore()
