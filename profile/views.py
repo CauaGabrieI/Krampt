@@ -1,5 +1,7 @@
+from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -14,8 +16,8 @@ from krampt.paginacao import parametros_sem_pagina, paginar
 from posts.http import obter_estado_desejado
 from posts.services import usuario_bloqueado_entre
 
-from .forms import EditarPerfilForm
-from .models import Perfil
+from .forms import DenunciaUsuarioForm, EditarPerfilForm
+from .models import DenunciaUsuario, Perfil
 from .selectors import conteudo_do_perfil, queryset_relacoes
 from .services import perfil_do, salvar_edicao_perfil
 
@@ -139,6 +141,46 @@ def seguir_usuario(request, usuario_id):
         alvo,
         obter_estado_desejado(request),
     )
+    return redirect(destino)
+
+
+@login_required
+@require_POST
+def denunciar_usuario(request, username):
+    alvo = get_object_or_404(User, username=username)
+    if alvo.pk == request.user.pk:
+        return HttpResponseForbidden("Você não pode denunciar o próprio perfil.")
+
+    destino = request.POST.get("return_path") or reverse(
+        "profile:perfil_publico",
+        args=[alvo.username],
+    )
+    if not url_has_allowed_host_and_scheme(
+        destino,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        destino = reverse("profile:perfil_publico", args=[alvo.username])
+
+    formulario = DenunciaUsuarioForm(request.POST)
+    if not formulario.is_valid():
+        messages.error(request, "Escolha um motivo válido para a denúncia.")
+        return redirect(destino)
+
+    _, criada = DenunciaUsuario.objects.get_or_create(
+        denunciante=request.user,
+        alvo=alvo,
+        defaults={
+            "motivo": formulario.cleaned_data["motivo"],
+            "detalhes": formulario.cleaned_data["detalhes"].strip(),
+        },
+    )
+
+    if criada:
+        messages.success(request, f"Denúncia contra @{alvo.username} enviada.")
+    else:
+        messages.info(request, f"Você já denunciou @{alvo.username}.")
+
     return redirect(destino)
 
 

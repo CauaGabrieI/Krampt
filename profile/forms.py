@@ -2,6 +2,8 @@ from django import forms
 
 from posts.services import validar_limites_da_imagem
 
+from .models import DenunciaUsuario
+
 def validar_foto(foto):
     if foto.size > 5 * 1024 * 1024:
         raise forms.ValidationError("A foto deve ter no máximo 5 MB.")
@@ -49,3 +51,7 @@ class EditarPerfilForm(forms.Form):
         if dados.get("banner") and dados.get("remover_banner"):
             self.add_error("remover_banner", "Escolha um novo banner ou remova o atual.")
         return dados
+
+class DenunciaUsuarioForm(forms.Form):
+    motivo = forms.ChoiceField(choices=DenunciaUsuario.Motivo.choices)
+    detalhes = forms.CharField(max_length=1000, required=False)

@@ -21,7 +21,46 @@
             <h1>{{ perfil_usuario.first_name|default:perfil_usuario.username }}</h1>
             <p>{{ total }} {% if total == 1 %}post{% else %}posts{% endif %}</p>
           </div>
+          <div class="post-menu profile-heading-menu" data-post-menu>
+            <button class="post-menu-trigger" type="button" aria-label="Abrir opções do perfil" aria-expanded="false" aria-controls="profile-menu-{{ perfil_usuario.pk }}">
+              <img src="{% static 'imgs/menu-pontos-vertical.png' %}" width="20" height="20" alt="" aria-hidden="true">
+            </button>
+            <div class="post-menu-panel" id="profile-menu-{{ perfil_usuario.pk }}" role="menu" hidden>
+              <button class="post-menu-danger" type="button" role="menuitem" data-open-dialog="report-profile-dialog">
+                <span class="material-symbols-outlined" aria-hidden="true">flag</span>
+                Denunciar @{{ perfil_usuario.username }}
+              </button>
+            </div>
+          </div>
         </div>
+
+        <dialog class="post-dialog" id="report-profile-dialog" aria-labelledby="report-profile-title">
+          <form method="post" action="{% url 'profile:denunciar_usuario' perfil_usuario.username %}" class="post-dialog-card">
+            {% csrf_token %}
+            <input type="hidden" name="return_path" value="{{ request.get_full_path }}">
+            <div class="post-dialog-header">
+              <h2 id="report-profile-title">Denunciar @{{ perfil_usuario.username }}</h2>
+              <button type="button" aria-label="Fechar" data-close-dialog>
+                <span class="material-symbols-outlined" aria-hidden="true">close</span>
+              </button>
+            </div>
+            <p>A denúncia será enviada para análise. O usuário não será avisado.</p>
+            <label for="profile-report-reason">Motivo</label>
+            <select id="profile-report-reason" name="motivo" required>
+              <option value="spam">Spam</option>
+              <option value="assedio">Assédio</option>
+              <option value="odio">Discurso de ódio</option>
+              <option value="falsa_identidade">Falsa identidade</option>
+              <option value="sexual">Conteúdo sexual</option>
+              <option value="violencia">Violência ou ameaça</option>
+              <option value="informacao_pessoal">Informação pessoal</option>
+              <option value="outro">Outro</option>
+            </select>
+            <label for="profile-report-details">Detalhes opcionais</label>
+            <textarea id="profile-report-details" name="detalhes" rows="3" maxlength="1000"></textarea>
+            <button class="primary-button small" type="submit">Enviar denúncia</button>
+          </form>
+        </dialog>
 
         {% if perfil.banner %}
           <div class="profile-cover has-banner">

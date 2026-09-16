@@ -10,7 +10,7 @@ from PIL import Image
 from posts.models import Post
 from posts.models import UsuarioBloqueado
 from mensagens.models import Conversa
-from .models import Perfil
+from .models import DenunciaUsuario, Perfil
 
 
 class SeguirUsuarioTests(TestCase):
@@ -634,3 +634,126 @@ class PerfilViewTests(TestCase):
         response = self.client.get(reverse("profile:perfil_publico", args=[outro.username]))
 
         self.assertEqual(response.status_code, 302)
+
+class DenunciarUsuarioTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        user_model = get_user_model()
+        cls.denunciante = user_model.objects.create_user(
+            username="denunciante",
+            password="senha-teste",
+        )
+        cls.alvo = user_model.objects.create_user(
+            username="alvo",
+            password="senha-teste",
+        )
+
+    def test_perfil_publico_mostra_menu_de_denuncia(self):
+        self.client.force_login(self.denunciante)
+
+        resposta = self.client.get(
+            reverse("profile:perfil_publico", args=[self.alvo.username])
+        )
+
+        self.assertContains(resposta, 'aria-label="Abrir opções do perfil"')
+        self.assertContains(resposta, f"Denunciar @{self.alvo.username}")
+        self.assertContains(resposta, 'id="report-profile-dialog"')
+        self.assertContains(
+            resposta,
+            reverse("profile:denunciar_usuario", args=[self.alvo.username]),
+        )
+
+    def test_denuncia_cria_registro_e_impede_duplicada(self):
+        self.client.force_login(self.denunciante)
+        url = reverse("profile:denunciar_usuario", args=[self.alvo.username])
+        retorno = reverse("profile:perfil_publico", args=[self.alvo.username])
+
+        primeira = self.client.post(
+            url,
+            {
+                "motivo": DenunciaUsuario.Motivo.FALSA_IDENTIDADE,
+                "detalhes": "Perfil fingindo ser outra pessoa.",
+                "return_path": retorno,
+            },
+        )
+        segunda = self.client.post(
+            url,
+            {
+                "motivo": DenunciaUsuario.Motivo.SPAM,
+                "detalhes": "Segunda tentativa.",
+                "return_path": retorno,
+            },
+        )
+
+        self.assertRedirects(primeira, retorno)
+        self.assertRedirects(segunda, retorno)
+        self.assertEqual(DenunciaUsuario.objects.count(), 1)
+
+        denuncia = DenunciaUsuario.objects.get()
+        self.assertEqual(denuncia.denunciante, self.denunciante)
+        self.assertEqual(denuncia.alvo, self.alvo)
+        self.assertEqual(
+            denuncia.motivo,
+            DenunciaUsuario.Motivo.FALSA_IDENTIDADE,
+        )
+        self.assertEqual(
+            denuncia.status,
+            DenunciaUsuario.Status.PENDENTE,
+        )
+
+    def test_nao_pode_denunciar_o_proprio_perfil(self):
+        self.client.force_login(self.denunciante)
+
+        resposta = self.client.post(
+            reverse(
+                "profile:denunciar_usuario",
+                args=[self.denunciante.username],
+            ),
+            {"motivo": DenunciaUsuario.Motivo.SPAM},
+        )
+
+        self.assertEqual(resposta.status_code, 403)
+        self.assertFalse(DenunciaUsuario.objects.exists())
+
+    def test_motivo_invalido_nao_cria_denuncia(self):
+        self.client.force_login(self.denunciante)
+        retorno = reverse(
+            "profile:perfil_publico",
+            args=[self.alvo.username],
+        )
+
+        resposta = self.client.post(
+            reverse(
+                "profile:denunciar_usuario",
+                args=[self.alvo.username],
+            ),
+            {
+                "motivo": "nao-existe",
+                "return_path": retorno,
+            },
+        )
+
+        self.assertRedirects(resposta, retorno)
+        self.assertFalse(DenunciaUsuario.objects.exists())
+
+    def test_return_path_externo_e_ignorado(self):
+        self.client.force_login(self.denunciante)
+
+        resposta = self.client.post(
+            reverse(
+                "profile:denunciar_usuario",
+                args=[self.alvo.username],
+            ),
+            {
+                "motivo": DenunciaUsuario.Motivo.SPAM,
+                "return_path": "https://evil.example/phishing",
+            },
+        )
+
+        self.assertRedirects(
+            resposta,
+            reverse(
+                "profile:perfil_publico",
+                args=[self.alvo.username],
+            ),
+        )

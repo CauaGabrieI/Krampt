@@ -34,6 +34,7 @@
 }
 .profile-feed .profile-page-heading { top: 0; }
 .profile-page-heading-text { min-width: 0; }
+.profile-page-heading > .profile-heading-menu { margin-left: auto; }
 .profile-page-heading h1 { overflow: hidden; padding: 0; font-size: 17px; text-overflow: ellipsis; white-space: nowrap; }
 .profile-page-heading p { margin: 2px 0 0; color: var(--subtle); font-size: 12px; }
 .profile-back-link { display: grid; flex: 0 0 auto; place-items: center; width: 36px; height: 36px; border-radius: 0; color: var(--muted); }
