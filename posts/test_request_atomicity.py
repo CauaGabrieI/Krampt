@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
+from krampt.container import servico_interacoes_post
 from notificacoes.models import Notificacao
 from profile.models import Perfil
 
@@ -148,7 +149,11 @@ class AtomicidadeDeMutacoesTests(TestCase):
 
     def test_notificacao_falhando_reverte_like(self):
         url = reverse("posts:curtir", args=[self.post.pk])
-        with patch("posts.views.notificar", side_effect=RuntimeError("falha")):
+        with patch.object(
+            servico_interacoes_post.notificacoes,
+            "enviar",
+            side_effect=RuntimeError("falha"),
+        ):
             with self.assertRaises(RuntimeError):
                 self.client.post(url, {"desired_state": "1"})
 

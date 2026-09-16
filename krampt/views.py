@@ -5,17 +5,12 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.views.decorators.http import require_GET, require_POST
-from posts.models import Post, ImagemPost
-from django.db import transaction
-from posts.services import (
-    bloquear_usuarios_para_mutacao,
-    comprimir_imagem_lossless,
-    filtrar_posts_visiveis,
-    obter_chave_idempotencia,
-    posts_para_exibir,
-)
+from posts.models import Post
+from posts.http import obter_chave_idempotencia
+from posts.services import filtrar_posts_visiveis, posts_para_exibir
 from posts.forms import CriarPostForm
 from profile.services import seguindo_ids
+from .container import servico_comandos_post
 from .paginacao import parametros_sem_pagina, paginar
 
 User = get_user_model()
@@ -33,31 +28,13 @@ def Index_view(request):
         formulario = CriarPostForm(request.POST, request.FILES)
         if formulario.is_valid():
             dados = formulario.cleaned_data
-            imagens = dados["imagem"]
-            chave = obter_chave_idempotencia(request)
-            with transaction.atomic():
-                if chave:
-                    bloquear_usuarios_para_mutacao(request.user)
-                    existente = Post.objects.filter(
-                        autor=request.user,
-                        original__isnull=True,
-                        chave_idempotencia=chave,
-                    ).first()
-                    if existente is not None:
-                        return redirect("home")
-
-                post = Post.objects.create(
-                    autor=request.user,
-                    conteudo=(dados["conteudo"] or "").strip(),
-                    imagem=comprimir_imagem_lossless(imagens[0]) if imagens else "",
-                    audio=dados.get("audio") or "",
-                    chave_idempotencia=chave,
-                )
-                for imagem in imagens[1:]:
-                    ImagemPost.objects.create(
-                        post=post,
-                        imagem=comprimir_imagem_lossless(imagem),
-                    )
+            servico_comandos_post.criar_post(
+                autor=request.user,
+                conteudo=dados["conteudo"] or "",
+                imagens=dados["imagem"],
+                audio=dados.get("audio"),
+                chave_idempotencia=obter_chave_idempotencia(request),
+            )
             return redirect("home")
 
     if request.GET.get("filtro") == "seguindo":

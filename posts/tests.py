@@ -447,7 +447,7 @@ class CriarPostComImagemTests(TestCase):
 
     def test_falha_em_imagem_adicional_reverte_post_no_banco(self):
         self.client.force_login(self.autor)
-        with patch("krampt.views.ImagemPost.objects.create", side_effect=OSError("falha de armazenamento")):
+        with patch("posts.application.ImagemPost.objects.create", side_effect=OSError("falha de armazenamento")):
             with self.assertRaises(OSError):
                 self.client.post(reverse("home"), {"imagem": [imagem_de_teste(), imagem_de_teste()]})
         self.assertFalse(Post.objects.exists())

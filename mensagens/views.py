@@ -1,19 +1,19 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db import transaction
 from django.db.models import Count, F, OuterRef, Prefetch, Q, Subquery
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
 from profile.models import Perfil
-from posts.services import bloquear_usuarios_para_mutacao, obter_chave_idempotencia
+from posts.http import obter_chave_idempotencia
+from krampt.container import servico_mensagens
 from krampt.paginacao import parametros_sem_pagina, paginar, MENSAGENS_POR_PAGINA
 
 from .forms import EnviarMensagemForm
 from .models import Conversa, Mensagem
-from .services import AVISO_MENSAGEM_BLOQUEADA, pode_enviar_mensagem
+from .services import AVISO_MENSAGEM_BLOQUEADA
 
 User = get_user_model()
 
@@ -106,7 +106,8 @@ def conversa_view(request, conversa_id):
         .first()
     )
     envio_permitido = bool(
-        outra_pessoa and pode_enviar_mensagem(request.user, outra_pessoa)
+        outra_pessoa
+        and servico_mensagens.pode_enviar(request.user, outra_pessoa)
     )
 
     if request.method == "POST":
@@ -116,34 +117,21 @@ def conversa_view(request, conversa_id):
 
         formulario = EnviarMensagemForm(request.POST)
         if formulario.is_valid():
-            chave = obter_chave_idempotencia(request)
-            with transaction.atomic():
-                bloquear_usuarios_para_mutacao(request.user, outra_pessoa)
+            resultado = servico_mensagens.enviar(
+                remetente=request.user,
+                destinatario=outra_pessoa,
+                conversa=conversa,
+                conteudo=formulario.cleaned_data["conteudo"],
+                chave_idempotencia=obter_chave_idempotencia(request),
+            )
+            if not resultado.permitido:
+                messages.error(request, AVISO_MENSAGEM_BLOQUEADA)
+                return redirect("mensagens:detalhe", conversa_id=conversa.pk)
 
-                # Reavalia depois dos locks. Assim follow/block concorrente não
-                # deixa uma mensagem escapar com uma decisão de permissão velha.
-                if not pode_enviar_mensagem(request.user, outra_pessoa):
-                    messages.error(request, AVISO_MENSAGEM_BLOQUEADA)
-                    return redirect("mensagens:detalhe", conversa_id=conversa.pk)
-
-                if chave:
-                    existente = Mensagem.objects.filter(
-                        autor=request.user,
-                        chave_idempotencia=chave,
-                    ).first()
-                    if existente is not None:
-                        return redirect(
-                            "mensagens:detalhe",
-                            conversa_id=existente.conversa_id,
-                        )
-
-                Mensagem.objects.create(
-                    conversa=conversa,
-                    autor=request.user,
-                    conteudo=formulario.cleaned_data["conteudo"],
-                    chave_idempotencia=chave,
-                )
-            return redirect("mensagens:detalhe", conversa_id=conversa.pk)
+            return redirect(
+                "mensagens:detalhe",
+                conversa_id=resultado.mensagem.conversa_id,
+            )
     else:
         formulario = EnviarMensagemForm()
 
@@ -192,29 +180,20 @@ def criar_conversa(request):
     usuario_id = request.POST.get("usuario_id", "")
     if not usuario_id.isascii() or not usuario_id.isdigit():
         return redirect("mensagens:lista")
+
     outra = get_object_or_404(User, pk=usuario_id)
     if outra.pk == request.user.pk:
         return redirect("mensagens:lista")
 
-    chave = f"{min(request.user.pk, outra.pk)}:{max(request.user.pk, outra.pk)}"
-    existente = Conversa.objects.filter(chave=chave).first()
-    if existente is None:
-        existente = (
-            Conversa.objects.filter(chave__isnull=True, participantes=request.user)
-            .filter(participantes=outra)
-            .first()
-        )
-    if existente is not None:
-        return redirect("mensagens:detalhe", conversa_id=existente.pk)
+    resultado = servico_mensagens.obter_ou_criar_conversa(
+        remetente=request.user,
+        destinatario=outra,
+    )
+    if not resultado.permitido:
+        messages.error(request, AVISO_MENSAGEM_BLOQUEADA)
+        return redirect("profile:perfil_publico", username=outra.username)
 
-    with transaction.atomic():
-        bloquear_usuarios_para_mutacao(request.user, outra)
-        if not pode_enviar_mensagem(request.user, outra):
-            messages.error(request, AVISO_MENSAGEM_BLOQUEADA)
-            return redirect("profile:perfil_publico", username=outra.username)
-
-        conversa, criada = Conversa.objects.get_or_create(chave=chave)
-        if criada:
-            conversa.participantes.add(request.user, outra)
-
-    return redirect("mensagens:detalhe", conversa_id=conversa.pk)
+    return redirect(
+        "mensagens:detalhe",
+        conversa_id=resultado.conversa.pk,
+    )

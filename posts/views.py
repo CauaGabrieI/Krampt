@@ -2,16 +2,14 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.views.decorators.http import require_POST
-from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.http import HttpResponseForbidden, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
-from notificacoes.services import notificar, remover_notificacao
+from krampt.container import servico_comandos_post, servico_interacoes_post
 from krampt.paginacao import parametros_sem_pagina, paginar
-from profile.models import Perfil
 from .models import (
     Comentario,
     DenunciaPost,
@@ -21,19 +19,16 @@ from .models import (
     UsuarioSilenciado,
 )
 from .forms import ComentarioForm, DenunciaPostForm, EditarPostForm
+from .http import obter_chave_idempotencia, obter_estado_desejado
 from .services import (
     bloquear_usuario,
-    bloquear_usuarios_para_mutacao,
-    comprimir_imagem_lossless,
     conteudo_com_hashtags,
     desocultar_post,
     desbloquear_usuario,
     dessilenciar_usuario,
     filtrar_posts_acessiveis,
     filtrar_posts_visiveis,
-    obter_chave_idempotencia,
     posts_para_exibir,
-    resolver_estado_desejado,
 )
 
 User = get_user_model()
@@ -153,59 +148,44 @@ def _voltar_para_posts(request, post_id=None):
 @require_POST
 def curtir_post(request, post_id):
     post = get_object_or_404(
-        filtrar_posts_acessiveis(Post.objects.filter(original__isnull=True), request.user),
+        filtrar_posts_acessiveis(
+            Post.objects.filter(original__isnull=True),
+            request.user,
+        ),
         pk=post_id,
     )
-    through = Post.curtidas.through
-    with transaction.atomic():
-        atual = through.objects.filter(
-            post_id=post.pk,
-            user_id=request.user.pk,
-        ).exists()
-        desejado = resolver_estado_desejado(request, atual)
-        if desejado:
-            through.objects.get_or_create(
-                post_id=post.pk,
-                user_id=request.user.pk,
-            )
-            notificar(post.autor, "curtida", request.user, post=post)
-        else:
-            through.objects.filter(
-                post_id=post.pk,
-                user_id=request.user.pk,
-            ).delete()
-            remover_notificacao(post.autor, "curtida", request.user, post=post)
-        total = through.objects.filter(post_id=post.pk).count()
-
+    resultado = servico_interacoes_post.curtir_post(
+        request.user,
+        post,
+        obter_estado_desejado(request),
+    )
     resposta = _resposta_ajax(
         request,
-        liked=desejado,
-        total=total,
+        liked=resultado.ativo,
+        total=resultado.total,
     )
     if resposta:
         return resposta
     return _voltar_para_posts(request, post.pk)
-
 @login_required
 @require_POST
 def salvar_post(request, post_id):
     post = get_object_or_404(
-        filtrar_posts_acessiveis(Post.objects.filter(original__isnull=True), request.user),
+        filtrar_posts_acessiveis(
+            Post.objects.filter(original__isnull=True),
+            request.user,
+        ),
         pk=post_id,
     )
-    with transaction.atomic():
-        atual = post.salvos_por.filter(pk=request.user.pk).exists()
-        desejado = resolver_estado_desejado(request, atual)
-        if desejado:
-            post.salvos_por.add(request.user)
-        else:
-            post.salvos_por.remove(request.user)
-
-    resposta = _resposta_ajax(request, saved=desejado)
+    resultado = servico_interacoes_post.salvar_post(
+        request.user,
+        post,
+        obter_estado_desejado(request),
+    )
+    resposta = _resposta_ajax(request, saved=resultado.ativo)
     if resposta:
         return resposta
     return _voltar_para_posts(request, post.pk)
-
 @login_required
 @require_POST
 def ignorar_post(request, post_id):
@@ -313,30 +293,16 @@ def fixar_post(request, post_id):
         autor=request.user,
         original__isnull=True,
     )
-    with transaction.atomic():
-        perfil, _ = Perfil.objects.get_or_create(usuario=request.user)
-        perfil = Perfil.objects.select_for_update().get(pk=perfil.pk)
-        atual = perfil.post_fixado_id == post.pk
-        desejado = resolver_estado_desejado(request, atual)
-
-        if desejado:
-            perfil.post_fixado = post
-            mensagem = "Post fixado no perfil."
-        elif atual:
-            perfil.post_fixado = None
-            mensagem = "Post desafixado."
-        else:
-            mensagem = "Post já estava desafixado."
-
-        perfil.save(update_fields=["post_fixado"])
-        pinned = perfil.post_fixado_id == post.pk
-
-    messages.success(request, mensagem)
-    resposta = _resposta_ajax(request, pinned=pinned)
+    resultado = servico_interacoes_post.fixar_post(
+        request.user,
+        post,
+        obter_estado_desejado(request),
+    )
+    messages.success(request, resultado.mensagem)
+    resposta = _resposta_ajax(request, pinned=resultado.ativo)
     if resposta:
         return resposta
     return _voltar_para_posts(request, post.pk)
-
 @login_required
 def atividade_post(request, post_id):
     post = get_object_or_404(Post, pk=post_id, autor=request.user, original__isnull=True)
@@ -386,97 +352,62 @@ def denunciar_post(request, post_id):
 @require_POST
 def republicar_post(request, post_id):
     post = get_object_or_404(
-        filtrar_posts_acessiveis(Post.objects.filter(original__isnull=True), request.user),
+        filtrar_posts_acessiveis(
+            Post.objects.filter(original__isnull=True),
+            request.user,
+        ),
         pk=post_id,
     )
-    with transaction.atomic():
-        atual = Post.objects.filter(
-            autor=request.user,
-            original=post,
-        ).exists()
-        desejado = resolver_estado_desejado(request, atual)
-
-        if desejado:
-            Post.objects.get_or_create(
-                autor=request.user,
-                original=post,
-                defaults={"conteudo": ""},
-            )
-            notificar(post.autor, "repost", request.user, post=post)
-        else:
-            Post.objects.filter(
-                autor=request.user,
-                original=post,
-            ).delete()
-            remover_notificacao(post.autor, "repost", request.user, post=post)
-
-        total = Post.objects.filter(original=post).count()
-
+    resultado = servico_interacoes_post.republicar_post(
+        request.user,
+        post,
+        obter_estado_desejado(request),
+    )
     resposta = _resposta_ajax(
         request,
-        reposted=desejado,
-        total=total,
+        reposted=resultado.ativo,
+        total=resultado.total,
     )
     if resposta:
         return resposta
     return _voltar_para_posts(request, post.pk)
-
 @login_required
 @require_POST
 def comentar_post(request, post_id):
     post = get_object_or_404(
-        filtrar_posts_acessiveis(Post.objects.filter(original__isnull=True), request.user),
+        filtrar_posts_acessiveis(
+            Post.objects.filter(original__isnull=True),
+            request.user,
+        ),
         pk=post_id,
     )
     formulario = ComentarioForm(request.POST, request.FILES)
     if not formulario.is_valid():
         return _erro_comentario(request, formulario, post.pk)
 
-    dados = formulario.cleaned_data
-    chave = obter_chave_idempotencia(request)
-
-    with transaction.atomic():
-        if chave:
-            bloquear_usuarios_para_mutacao(request.user)
-            existente = Comentario.objects.filter(
-                autor=request.user,
-                chave_idempotencia=chave,
-            ).first()
-            if existente is not None:
-                resposta = _resposta_ajax(
-                    request,
-                    created=True,
-                    duplicate=True,
-                    comentario_id=existente.pk,
-                )
-                if resposta:
-                    return resposta
-                return _voltar_para_posts(request, existente.post_id)
-
-        comentario = Comentario.objects.create(
-            post=post,
-            autor=request.user,
-            conteudo=dados["conteudo"],
-            imagem=comprimir_imagem_lossless(dados.get("imagem")) if dados.get("imagem") else "",
-            audio=dados.get("audio") or "",
-            chave_idempotencia=chave,
-        )
-        notificar(
-            post.autor,
-            "comentario",
-            request.user,
-            post=post,
-            comentario=comentario,
-        )
-
-    resposta = _resposta_ajax(
-        request,
-        created=True,
+    resultado = servico_comandos_post.criar_comentario(
+        autor=request.user,
+        post=post,
+        dados=formulario.cleaned_data,
+        chave_idempotencia=obter_chave_idempotencia(request),
     )
+    comentario = resultado.objeto
+
+    if resultado.duplicado:
+        resposta = _resposta_ajax(
+            request,
+            created=True,
+            duplicate=True,
+            comentario_id=comentario.pk,
+        )
+        if resposta:
+            return resposta
+        return _voltar_para_posts(request, comentario.post_id)
+
+    resposta = _resposta_ajax(request, created=True)
     if resposta:
         return resposta
     return _voltar_para_posts(request, post.pk)
-
 @login_required
 @require_POST
 def curtir_comentario(request, comentario_id):
@@ -489,51 +420,19 @@ def curtir_comentario(request, comentario_id):
         ),
         pk=comentario_id,
     )
-    through = Comentario.curtidas.through
-
-    with transaction.atomic():
-        atual = through.objects.filter(
-            comentario_id=comentario.pk,
-            user_id=request.user.pk,
-        ).exists()
-        desejado = resolver_estado_desejado(request, atual)
-
-        if desejado:
-            through.objects.get_or_create(
-                comentario_id=comentario.pk,
-                user_id=request.user.pk,
-            )
-            notificar(
-                comentario.autor,
-                "curtida_comentario",
-                request.user,
-                post=comentario.post,
-                comentario=comentario,
-            )
-        else:
-            through.objects.filter(
-                comentario_id=comentario.pk,
-                user_id=request.user.pk,
-            ).delete()
-            remover_notificacao(
-                comentario.autor,
-                "curtida_comentario",
-                request.user,
-                post=comentario.post,
-                comentario=comentario,
-            )
-
-        total = through.objects.filter(comentario_id=comentario.pk).count()
-
+    resultado = servico_interacoes_post.curtir_comentario(
+        request.user,
+        comentario,
+        obter_estado_desejado(request),
+    )
     resposta = _resposta_ajax(
         request,
-        liked=desejado,
-        total=total,
+        liked=resultado.ativo,
+        total=resultado.total,
     )
     if resposta:
         return resposta
     return _voltar_para_posts(request, comentario.post_id)
-
 @login_required
 @require_POST
 def excluir_comentario(request, comentario_id):
@@ -562,48 +461,26 @@ def responder_comentario(request, comentario_id):
     if not formulario.is_valid():
         return _erro_comentario(request, formulario, comentario.post_id)
 
-    dados = formulario.cleaned_data
-    chave = obter_chave_idempotencia(request)
-
-    with transaction.atomic():
-        if chave:
-            bloquear_usuarios_para_mutacao(request.user)
-            existente = Comentario.objects.filter(
-                autor=request.user,
-                chave_idempotencia=chave,
-            ).first()
-            if existente is not None:
-                resposta_ajax = _resposta_ajax(
-                    request,
-                    created=True,
-                    duplicate=True,
-                    comentario_id=existente.pk,
-                )
-                if resposta_ajax:
-                    return resposta_ajax
-                return _voltar_para_posts(request, existente.post_id)
-
-        resposta = Comentario.objects.create(
-            post=comentario.post,
-            autor=request.user,
-            resposta_para=comentario.resposta_para or comentario,
-            conteudo=dados["conteudo"],
-            imagem=comprimir_imagem_lossless(dados.get("imagem")) if dados.get("imagem") else "",
-            audio=dados.get("audio") or "",
-            chave_idempotencia=chave,
-        )
-        notificar(
-            comentario.autor,
-            "resposta",
-            request.user,
-            post=comentario.post,
-            comentario=resposta,
-        )
-
-    resposta_ajax = _resposta_ajax(
-        request,
-        created=True,
+    resultado = servico_comandos_post.responder_comentario(
+        autor=request.user,
+        comentario=comentario,
+        dados=formulario.cleaned_data,
+        chave_idempotencia=obter_chave_idempotencia(request),
     )
+    resposta_criada = resultado.objeto
+
+    if resultado.duplicado:
+        resposta_ajax = _resposta_ajax(
+            request,
+            created=True,
+            duplicate=True,
+            comentario_id=resposta_criada.pk,
+        )
+        if resposta_ajax:
+            return resposta_ajax
+        return _voltar_para_posts(request, resposta_criada.post_id)
+
+    resposta_ajax = _resposta_ajax(request, created=True)
     if resposta_ajax:
         return resposta_ajax
     return _voltar_para_posts(request, comentario.post_id)

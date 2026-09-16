@@ -12,6 +12,7 @@ from django.utils.html import escape, urlize
 from django.utils.text import slugify
 from django.utils.safestring import mark_safe
 
+from .http import obter_chave_idempotencia, obter_estado_desejado
 from .models import Comentario, Post, PostSemInteresse, UsuarioBloqueado, UsuarioSilenciado
 
 
@@ -42,25 +43,9 @@ LINK_OU_HASHTAG_RE = re.compile(
 MAX_LADO_IMAGEM = 8000
 MAX_PIXELS_IMAGEM = 30_000_000
 MAX_FRAMES_GIF = 150
-CHAVE_IDEMPOTENCIA_RE = re.compile(r"^[A-Za-z0-9:_-]{8,64}$")
-
-
-def obter_chave_idempotencia(request):
-    chave = (request.POST.get("idempotency_key") or "").strip()
-    if not chave or not CHAVE_IDEMPOTENCIA_RE.fullmatch(chave):
-        return None
-    return chave
-
-
 def resolver_estado_desejado(request, atual):
-    valor = (request.POST.get("desired_state") or "").strip().lower()
-    if valor in {"1", "true", "on", "yes"}:
-        return True
-    if valor in {"0", "false", "off", "no"}:
-        return False
-    # Compatibilidade com testes/clients antigos; a UI atual sempre envia
-    # desired_state, portanto retries do cliente são idempotentes.
-    return not atual
+    desejado = obter_estado_desejado(request)
+    return (not atual) if desejado is None else desejado
 
 
 def bloquear_usuarios_para_mutacao(*usuarios):
