@@ -11,13 +11,13 @@
     <div class="email-test-heading">
       <span class="eyebrow">Administração</span>
       <h1>Testar envio de e-mail</h1>
-      <p>Envie uma mensagem simples para conferir a configuração de e-mail do Krampt.</p>
+      <p>Enfileire uma mensagem para testar a Outbox, o worker e a configuração de e-mail do Krampt.</p>
     </div>
 
     <section class="email-test-card" aria-labelledby="email-test-form-heading">
       <h2 id="email-test-form-heading">Novo teste</h2>
       {% if modo_console %}
-        <p class="email-test-note">Modo de desenvolvimento: a mensagem aparecerá no console do servidor.</p>
+        <p class="email-test-note">Modo de desenvolvimento: o worker registrará a mensagem no console do servidor.</p>
       {% endif %}
       {% if sucesso %}<p class="email-test-success" role="status">{{ sucesso }}</p>{% endif %}
       {% if erro_envio %}<p class="email-test-error" role="alert">{{ erro_envio }}</p>{% endif %}
@@ -29,7 +29,7 @@
         {% if formulario.email.errors %}
           <p class="email-test-error" id="test-email-error" role="alert">{{ formulario.email.errors|join:' ' }}</p>
         {% endif %}
-        <p class="email-test-help" id="test-email-help">O resultado confirma que o servidor aceitou o envio; a entrega depende do provedor e da caixa de destino.</p>
+        <p class="email-test-help" id="test-email-help">O envio do formulário confirma que o evento foi salvo na Outbox. A entrega é feita pelo worker e depende do provedor e da caixa de destino.</p>
         <button class="primary-button" type="submit">Enviar teste</button>
       </form>
     </section>

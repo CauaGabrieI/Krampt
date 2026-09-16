@@ -1,17 +1,16 @@
 import logging
-from smtplib import SMTPException
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied
-from django.core.mail import send_mail
 from django.contrib import messages
 from django.shortcuts import redirect, render
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_http_methods
 
 from configuracoes.services import excluir_conta_com_limpeza
+from outbox.services import enfileirar_email
 
 from .forms import AdminExcluirUsuarioForm, TesteEmailForm
 
@@ -32,22 +31,34 @@ def testar_email_view(request):
 
     if request.method == "POST" and formulario.is_valid():
         try:
-            enviados = send_mail(
+            enfileirar_email(
+                formulario.cleaned_data["email"],
                 "Teste de e-mail do Krampt",
-                "Este é um teste de envio de e-mail do Krampt. Nenhuma ação é necessária.",
-                settings.DEFAULT_FROM_EMAIL,
-                [formulario.cleaned_data["email"]],
+                (
+                    "Este é um teste de envio de e-mail do Krampt pela "
+                    "Transactional Outbox. Nenhuma ação é necessária."
+                ),
             )
-            if enviados != 1:
-                raise OSError("O serviço de e-mail não confirmou o envio.")
-        except (SMTPException, OSError) as erro:
-            logger.warning("Falha ao enviar e-mail de teste do Krampt (%s)", type(erro).__name__)
-            contexto["erro_envio"] = "O envio falhou. Confira a configuração de e-mail do servidor e tente novamente."
+        except Exception as erro:
+            logger.warning(
+                "Falha ao enfileirar e-mail de teste do Krampt (%s)",
+                type(erro).__name__,
+            )
+            contexto["erro_envio"] = (
+                "Não foi possível colocar o teste na fila da Outbox. "
+                "Confira os logs do servidor e tente novamente."
+            )
         else:
             contexto["sucesso"] = (
-                "Teste registrado no console do servidor. Nenhum e-mail chegou à caixa de entrada."
+                (
+                    "Teste colocado na fila da Outbox. O worker registrará "
+                    "a mensagem no console em vez de entregá-la na caixa de entrada."
+                )
                 if modo_console
-                else "O servidor de e-mail aceitou a mensagem. Confira a caixa de entrada e o spam."
+                else (
+                    "E-mail colocado na fila da Outbox. O worker fará o envio. "
+                    "Confira a caixa de entrada e o spam."
+                )
             )
 
     return render(request, "testar_email.html", contexto)

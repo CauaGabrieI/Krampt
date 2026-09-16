@@ -5,6 +5,8 @@ from django.core import mail
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
+from outbox.models import EventoOutbox
+
 
 User = get_user_model()
 
@@ -26,51 +28,96 @@ class TestarEmailAdminTests(TestCase):
         self.assertEqual(self.client.get(url).status_code, 403)
         self.assertEqual(self.client.post(url, {"email": "destino@example.com"}).status_code, 403)
         self.assertEqual(len(mail.outbox), 0)
+        self.assertEqual(EventoOutbox.objects.count(), 0)
         self.assertNotContains(self.client.get(reverse("home")), "Testar e-mail")
 
-    def test_admin_envia_para_email_informado(self):
+    def test_admin_processa_teste_pela_outbox_em_modo_eager(self):
         self.client.force_login(self.admin)
         url = reverse("testar_email")
         pagina = self.client.get(url)
         self.assertContains(pagina, 'name="email"')
         self.assertContains(pagina, "Testar e-mail")
+        self.assertContains(pagina, "Outbox")
         self.assertContains(self.client.get(reverse("home")), url)
 
         resposta = self.client.post(url, {"email": "destino@example.com"})
 
         self.assertEqual(resposta.status_code, 200)
-        self.assertContains(resposta, "servidor de e-mail aceitou")
+        self.assertContains(resposta, "fila da Outbox")
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, ["destino@example.com"])
         self.assertEqual(mail.outbox[0].subject, "Teste de e-mail do Krampt")
 
-    def test_email_invalido_nao_envia(self):
+        evento = EventoOutbox.objects.get(tipo="email.enviar")
+        self.assertIsNotNone(evento.processado_em)
+        self.assertEqual(evento.payload, {})
+
+    @override_settings(OUTBOX_EAGER=False)
+    def test_admin_enfileira_para_worker_sem_enviar_na_requisicao(self):
+        self.client.force_login(self.admin)
+
+        resposta = self.client.post(
+            reverse("testar_email"),
+            {"email": "destino@example.com"},
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "worker fará o envio")
+        self.assertEqual(len(mail.outbox), 0)
+
+        evento = EventoOutbox.objects.get(tipo="email.enviar")
+        self.assertIsNone(evento.processado_em)
+        self.assertIsNone(evento.descartado_em)
+        self.assertEqual(evento.tentativas, 0)
+        self.assertEqual(evento.payload["para"], ["destino@example.com"])
+        self.assertEqual(evento.payload["assunto"], "Teste de e-mail do Krampt")
+        self.assertIn("Transactional Outbox", evento.payload["texto"])
+
+    def test_email_invalido_nao_enfileira(self):
         self.client.force_login(self.admin)
         resposta = self.client.post(reverse("testar_email"), {"email": "invalido"})
         self.assertEqual(resposta.status_code, 200)
         self.assertTrue(resposta.context["formulario"].errors)
         self.assertEqual(len(mail.outbox), 0)
+        self.assertEqual(EventoOutbox.objects.count(), 0)
 
-    @override_settings(MAILERS={"default": {"BACKEND": "django.core.mail.backends.console.EmailBackend"}})
-    def test_modo_console_avisa_que_nao_entrega_na_caixa_postal(self):
+    @override_settings(
+        MAILERS={"default": {"BACKEND": "django.core.mail.backends.console.EmailBackend"}},
+        OUTBOX_EAGER=False,
+    )
+    def test_modo_console_avisa_que_worker_registra_no_console(self):
         self.client.force_login(self.admin)
-        with patch("login.admin_views.send_mail", return_value=1):
-            resposta = self.client.post(reverse("testar_email"), {"email": "destino@example.com"})
-        self.assertContains(resposta, "Nenhum e-mail chegou à caixa de entrada")
+        resposta = self.client.post(
+            reverse("testar_email"),
+            {"email": "destino@example.com"},
+        )
+        self.assertContains(resposta, "fila da Outbox")
+        self.assertContains(resposta, "console")
+        self.assertEqual(EventoOutbox.objects.filter(tipo="email.enviar").count(), 1)
 
-    def test_falha_de_envio_e_mostrada_sem_detalhes_do_servidor(self):
+    def test_falha_ao_enfileirar_e_mostrada_sem_detalhes_do_servidor(self):
         self.client.force_login(self.admin)
-        with patch("login.admin_views.send_mail", side_effect=OSError("senha SMTP secreta")):
-            resposta = self.client.post(reverse("testar_email"), {"email": "destino@example.com"})
-        self.assertContains(resposta, "O envio falhou")
+        with patch(
+            "login.admin_views.enfileirar_email",
+            side_effect=OSError("senha SMTP secreta"),
+        ):
+            resposta = self.client.post(
+                reverse("testar_email"),
+                {"email": "destino@example.com"},
+            )
+        self.assertContains(resposta, "Não foi possível colocar o teste na fila")
         self.assertNotContains(resposta, "senha SMTP secreta")
 
     def test_post_exige_csrf(self):
         cliente = Client(enforce_csrf_checks=True)
         cliente.force_login(self.admin)
-        resposta = cliente.post(reverse("testar_email"), {"email": "destino@example.com"})
+        resposta = cliente.post(
+            reverse("testar_email"),
+            {"email": "destino@example.com"},
+        )
         self.assertEqual(resposta.status_code, 403)
         self.assertEqual(len(mail.outbox), 0)
+        self.assertEqual(EventoOutbox.objects.count(), 0)
 
 
 class ApagarUsuariosAdminTests(TestCase):
