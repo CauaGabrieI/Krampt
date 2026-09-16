@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Sobre | Krampt{% endblock %}
+{% block body_class %}public-page{% endblock %}
+{% block extra_head %}
+  <meta name="description" content="Conheça o Krampt, uma rede social criada para publicação, descoberta de pessoas, conversas e comunidades.">
+  <link rel="stylesheet" href="{% static 'css/public.css' %}?v=public-site-1">
+{% endblock %}
+{% block content %}
+  <header class="public-nav">
+    <a class="public-brand" href="{% url 'home' %}" aria-label="Krampt">
+      <img src="{% static 'imgs/logo.png' %}" alt=""><span>Krampt</span>
+    </a>
+    <nav aria-label="Navegação principal">
+      <a href="{% url 'diretrizes' %}">Diretrizes</a>
+      <a href="{% url 'privacidade' %}">Privacidade</a>
+      <a href="{% url 'login:login' %}">Entrar</a>
+      <a class="public-button" href="{% url 'cadastro' %}">Criar conta</a>
+    </nav>
+  </header>
+
+  <main class="public-document">
+    <p class="public-eyebrow">Sobre o Krampt</p>
+    <h1>Uma rede social construída para publicação e conversa.</h1>
+    <p class="public-document-lead">
+      O Krampt é um espaço para pessoas criarem perfis, publicarem ideias e mídia, seguirem outras
+      pessoas e participarem de conversas. A proposta é combinar um feed simples com ferramentas
+      que deem ao usuário controle sobre sua experiência.
+    </p>
+
+    <section>
+      <h2>O que o Krampt oferece</h2>
+      <p>
+        Contas verificadas por e-mail, perfis personalizáveis, publicações em texto e mídia,
+        comentários e respostas, curtidas, republicações, posts salvos, hashtags, mensagens,
+        notificações e recursos para seguir pessoas fazem parte da experiência.
+      </p>
+    </section>
+
+    <section>
+      <h2>Segurança e moderação</h2>
+      <p>
+        Usuários podem bloquear ou silenciar outras contas e denunciar publicações ou perfis.
+        Denúncias podem ser analisadas pela equipe responsável pelo serviço, que pode limitar ou
+        remover conteúdo e contas quando necessário para aplicar as regras da comunidade.
+      </p>
+    </section>
+
+    <section>
+      <h2>Privacidade e transparência</h2>
+      <p>
+        O funcionamento do serviço depende de dados de conta e de conteúdo escolhido pelo próprio
+        usuário. As práticas gerais de tratamento desses dados estão descritas na
+        <a href="{% url 'privacidade' %}">Política de Privacidade</a>. As regras de uso estão nos
+        <a href="{% url 'termos' %}">Termos de Uso</a> e nas
+        <a href="{% url 'diretrizes' %}">Diretrizes da Comunidade</a>.
+      </p>
+    </section>
+  </main>
+
+  {% include "includes/public_footer.html" %}
+{% endblock %}

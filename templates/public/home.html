@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Krampt | Compartilhe ideias e encontre pessoas{% endblock %}
+{% block body_class %}public-page public-home{% endblock %}
+{% block extra_head %}
+  <meta name="description" content="Krampt é uma rede social para publicar ideias, conversar, seguir pessoas e participar de comunidades com ferramentas de segurança e moderação.">
+  <link rel="stylesheet" href="{% static 'css/public.css' %}?v=public-site-1">
+{% endblock %}
+{% block content %}
+  <header class="public-nav">
+    <a class="public-brand" href="{% url 'home' %}" aria-label="Krampt">
+      <img src="{% static 'imgs/logo.png' %}" alt="">
+      <span>Krampt</span>
+    </a>
+    <nav aria-label="Navegação principal">
+      <a href="{% url 'sobre' %}">Sobre</a>
+      <a href="{% url 'diretrizes' %}">Diretrizes</a>
+      <a href="{% url 'login:login' %}">Entrar</a>
+      <a class="public-button" href="{% url 'cadastro' %}">Criar conta</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="public-hero">
+      <div class="public-hero-copy">
+        <p class="public-eyebrow">Uma rede feita para conversar</p>
+        <h1>Compartilhe o que você pensa. Encontre pessoas que valem acompanhar.</h1>
+        <p class="public-lead">
+          O Krampt é uma rede social para publicar ideias, imagens e áudio, acompanhar pessoas,
+          conversar por comentários e descobrir assuntos que estão movimentando a comunidade.
+        </p>
+        <div class="public-actions">
+          <a class="public-button public-button--large" href="{% url 'cadastro' %}">Criar minha conta</a>
+          <a class="public-button-secondary" href="{% url 'login:login' %}">Já tenho uma conta</a>
+        </div>
+      </div>
+      <div class="public-hero-card" aria-label="Resumo dos recursos do Krampt">
+        <span class="material-symbols-outlined" aria-hidden="true">forum</span>
+        <strong>Seu espaço, sua voz.</strong>
+        <p>Publique, siga pessoas, participe de conversas e controle sua experiência.</p>
+      </div>
+    </section>
+
+    <section class="public-section" aria-labelledby="recursos-title">
+      <div class="public-section-heading">
+        <p class="public-eyebrow">O que você encontra</p>
+        <h2 id="recursos-title">Uma experiência social simples e completa</h2>
+      </div>
+      <div class="public-grid">
+        <article class="public-card">
+          <span class="material-symbols-outlined" aria-hidden="true">edit_square</span>
+          <h3>Publique ideias e mídia</h3>
+          <p>Compartilhe textos, imagens e áudio com as pessoas que acompanham seu perfil.</p>
+        </article>
+        <article class="public-card">
+          <span class="material-symbols-outlined" aria-hidden="true">chat_bubble</span>
+          <h3>Converse de verdade</h3>
+          <p>Comente, responda, curta e republique para transformar uma publicação em conversa.</p>
+        </article>
+        <article class="public-card">
+          <span class="material-symbols-outlined" aria-hidden="true">group</span>
+          <h3>Descubra pessoas</h3>
+          <p>Siga perfis, explore sugestões e encontre publicações por assuntos e hashtags.</p>
+        </article>
+        <article class="public-card">
+          <span class="material-symbols-outlined" aria-hidden="true">shield</span>
+          <h3>Segurança e controle</h3>
+          <p>Bloqueie, silencie e denuncie conteúdo ou perfis que violem as regras da comunidade.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="public-section public-section--split">
+      <div>
+        <p class="public-eyebrow">Como funciona</p>
+        <h2>Entre, monte seu perfil e participe.</h2>
+      </div>
+      <ol class="public-steps">
+        <li><strong>Crie sua conta.</strong><span>Escolha seu nome de usuário e confirme seu e-mail.</span></li>
+        <li><strong>Personalize seu perfil.</strong><span>Adicione foto, banner e uma breve biografia.</span></li>
+        <li><strong>Construa seu feed.</strong><span>Siga pessoas e interaja com as publicações que importam para você.</span></li>
+      </ol>
+    </section>
+
+    <section class="public-section public-trust">
+      <div>
+        <p class="public-eyebrow">Comunidade</p>
+        <h2>Liberdade para conversar também precisa de regras claras.</h2>
+        <p>
+          O Krampt mantém ferramentas de denúncia e moderação para lidar com spam, assédio,
+          discurso de ódio, falsa identidade, violência, exposição de dados pessoais e outros abusos.
+        </p>
+      </div>
+      <div class="public-trust-links">
+        <a href="{% url 'diretrizes' %}">Ler Diretrizes da Comunidade</a>
+        <a href="{% url 'privacidade' %}">Política de Privacidade</a>
+        <a href="{% url 'termos' %}">Termos de Uso</a>
+      </div>
+    </section>
+
+    <section class="public-cta">
+      <h2>Pronto para entrar na conversa?</h2>
+      <p>Crie sua conta e comece a construir seu espaço no Krampt.</p>
+      <a class="public-button public-button--large" href="{% url 'cadastro' %}">Criar conta</a>
+    </section>
+  </main>
+
+  {% include "includes/public_footer.html" %}
+{% endblock %}

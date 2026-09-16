@@ -1,0 +1,12 @@
+<footer class="public-footer">
+  <div class="public-footer-inner">
+    <a class="public-footer-brand" href="{% url 'home' %}">Krampt</a>
+    <nav class="public-footer-links" aria-label="Links institucionais">
+      <a href="{% url 'sobre' %}">Sobre</a>
+      <a href="{% url 'diretrizes' %}">Diretrizes</a>
+      <a href="{% url 'privacidade' %}">Privacidade</a>
+      <a href="{% url 'termos' %}">Termos</a>
+    </nav>
+    <p>© {% now "Y" %} Krampt. Uma rede social para compartilhar ideias e conversar.</p>
+  </div>
+</footer>

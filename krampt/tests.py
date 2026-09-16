@@ -58,7 +58,7 @@ class AutenticacaoTests(TestCase):
     def test_paginas_exigem_login(self):
         usuario = get_user_model().objects.create_user(username="autor-do-post")
         post = Post.objects.create(autor=usuario, conteudo="Teste")
-        for url in ["/", "/buscar/", "/perfil/", "/mensagens/", "/notificacoes/", reverse("posts:detalhe", args=[post.pk]), reverse("posts:editar", args=[post.pk])]:
+        for url in ["/buscar/", "/perfil/", "/mensagens/", "/notificacoes/", reverse("posts:detalhe", args=[post.pk]), reverse("posts:editar", args=[post.pk])]:
             with self.subTest(url=url):
                 response = self.client.get(url)
                 self.assertRedirects(response, f"/login/?next={url}")
@@ -79,7 +79,16 @@ class AutenticacaoTests(TestCase):
         self.assertIn("no-store", response["Cache-Control"])
         self.assertIn("private", response["Cache-Control"])
         Session.objects.filter(session_key=self.client.session.session_key).delete()
-        self.assertRedirects(self.client.get("/"), "/login/?next=/")
+
+        pagina_publica = self.client.get("/")
+        self.assertEqual(pagina_publica.status_code, 200)
+        self.assertContains(pagina_publica, "Uma rede feita para conversar")
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+        self.assertRedirects(
+            self.client.get("/buscar/"),
+            "/login/?next=/buscar/",
+        )
 
 
 class LogoutTests(TestCase):

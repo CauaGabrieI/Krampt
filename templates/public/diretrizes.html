@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Diretrizes da Comunidade | Krampt{% endblock %}
+{% block body_class %}public-page{% endblock %}
+{% block extra_head %}
+  <meta name="description" content="Diretrizes da Comunidade do Krampt: regras contra spam, assédio, ódio, violência, exposição de dados e outros abusos.">
+  <link rel="stylesheet" href="{% static 'css/public.css' %}?v=public-site-1">
+{% endblock %}
+{% block content %}
+  <header class="public-nav">
+    <a class="public-brand" href="{% url 'home' %}" aria-label="Krampt">
+      <img src="{% static 'imgs/logo.png' %}" alt=""><span>Krampt</span>
+    </a>
+    <nav aria-label="Navegação principal">
+      <a href="{% url 'sobre' %}">Sobre</a>
+      <a href="{% url 'privacidade' %}">Privacidade</a>
+      <a href="{% url 'termos' %}">Termos</a>
+      <a href="{% url 'login:login' %}">Entrar</a>
+    </nav>
+  </header>
+
+  <main class="public-document">
+    <p class="public-eyebrow">Diretrizes da Comunidade</p>
+    <h1>Converse livremente. Não transforme o espaço em abuso.</h1>
+    <p class="public-document-meta">Última atualização: {% now "d/m/Y" %}</p>
+    <p class="public-document-lead">
+      Estas diretrizes explicam comportamentos e conteúdos que podem gerar moderação no Krampt.
+      Elas se aplicam a publicações, comentários, perfis, mensagens e outras áreas da plataforma.
+    </p>
+
+    <section>
+      <h2>1. Spam e manipulação</h2>
+      <p>
+        Não publique conteúdo repetitivo em massa, golpes, links enganosos, automação abusiva,
+        esquemas de manipulação de engajamento ou comportamento destinado a prejudicar a
+        experiência de outros usuários.
+      </p>
+    </section>
+
+    <section>
+      <h2>2. Assédio e ameaças</h2>
+      <p>
+        Não use a plataforma para perseguir, intimidar, humilhar de forma direcionada, ameaçar
+        violência ou incentivar ataques coordenados contra pessoas.
+      </p>
+    </section>
+
+    <section>
+      <h2>3. Ódio e desumanização</h2>
+      <p>
+        Conteúdo que ataque, ameace ou desumanize pessoas com base em características protegidas
+        pode ser removido e resultar em medidas sobre a conta.
+      </p>
+    </section>
+
+    <section>
+      <h2>4. Violência e exploração</h2>
+      <p>
+        Não publique ameaças críveis, incentivo a violência, exploração sexual, material de abuso
+        ou conteúdo que coloque pessoas em risco. Situações graves podem exigir medidas imediatas.
+      </p>
+    </section>
+
+    <section>
+      <h2>5. Informações pessoais</h2>
+      <p>
+        Não exponha informações privadas de outra pessoa sem autorização quando isso puder gerar
+        risco, perseguição, fraude ou dano. Isso inclui dados de contato, documentos e outras
+        informações sensíveis obtidas de forma indevida.
+      </p>
+    </section>
+
+    <section>
+      <h2>6. Falsa identidade e fraude</h2>
+      <p>
+        Não se passe por outra pessoa ou organização de maneira enganosa para fraudar, manipular
+        ou causar dano. Paródia e comentário não devem ser usados como justificativa para fraude.
+      </p>
+    </section>
+
+    <section>
+      <h2>7. Conteúdo ilegal e direitos de terceiros</h2>
+      <p>
+        Não use o Krampt para distribuir conteúdo ilegal nem material que você não tenha direito
+        de publicar. Respeite direitos autorais, marcas, privacidade e outros direitos aplicáveis.
+      </p>
+    </section>
+
+    <section>
+      <h2>8. Denúncias e medidas</h2>
+      <p>
+        Publicações e perfis podem ser denunciados pelas ferramentas do Krampt. A existência de
+        uma denúncia não significa automaticamente que houve violação; o contexto pode ser
+        analisado antes da aplicação de medidas.
+      </p>
+    </section>
+  </main>
+
+  {% include "includes/public_footer.html" %}
+{% endblock %}

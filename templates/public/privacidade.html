@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Política de Privacidade | Krampt{% endblock %}
+{% block body_class %}public-page{% endblock %}
+{% block extra_head %}
+  <meta name="description" content="Política de Privacidade do Krampt: dados de conta, conteúdo, segurança, cookies e publicidade.">
+  <link rel="stylesheet" href="{% static 'css/public.css' %}?v=public-site-1">
+{% endblock %}
+{% block content %}
+  <header class="public-nav">
+    <a class="public-brand" href="{% url 'home' %}" aria-label="Krampt">
+      <img src="{% static 'imgs/logo.png' %}" alt=""><span>Krampt</span>
+    </a>
+    <nav aria-label="Navegação principal">
+      <a href="{% url 'sobre' %}">Sobre</a>
+      <a href="{% url 'diretrizes' %}">Diretrizes</a>
+      <a href="{% url 'termos' %}">Termos</a>
+      <a href="{% url 'login:login' %}">Entrar</a>
+    </nav>
+  </header>
+
+  <main class="public-document">
+    <p class="public-eyebrow">Política de Privacidade</p>
+    <h1>Como o Krampt trata informações.</h1>
+    <p class="public-document-meta">Última atualização: {% now "d/m/Y" %}</p>
+    <p class="public-document-lead">
+      Esta política explica, em linguagem geral, quais informações são usadas para operar o Krampt,
+      por que elas são necessárias e quais controles ficam disponíveis para os usuários.
+    </p>
+
+    <section>
+      <h2>1. Informações de conta</h2>
+      <p>
+        Para criar e manter uma conta, o Krampt pode tratar informações como nome exibido,
+        nome de usuário, endereço de e-mail, credenciais protegidas e dados relacionados à
+        verificação da conta e à segurança do acesso.
+      </p>
+    </section>
+
+    <section>
+      <h2>2. Conteúdo e atividade</h2>
+      <p>
+        O serviço trata o conteúdo que você decide publicar ou enviar, como textos, imagens,
+        áudio, comentários, respostas e mensagens, além de ações necessárias para recursos como
+        seguir, curtir, republicar, salvar, bloquear, silenciar e denunciar.
+      </p>
+    </section>
+
+    <section>
+      <h2>3. Dados técnicos e segurança</h2>
+      <p>
+        Informações técnicas necessárias ao funcionamento do serviço podem ser processadas para
+        autenticação, prevenção de abuso, limitação de tentativas, manutenção de sessões,
+        entrega de arquivos, diagnóstico de falhas e proteção da plataforma.
+      </p>
+    </section>
+
+    <section>
+      <h2>4. Cookies e armazenamento local</h2>
+      <p>
+        O Krampt usa mecanismos de sessão e cookies necessários para autenticação, segurança e
+        preferências. Serviços de terceiros integrados ao site também podem usar cookies ou
+        tecnologias semelhantes de acordo com suas próprias políticas e com as escolhas de
+        consentimento aplicáveis.
+      </p>
+    </section>
+
+    <section>
+      <h2>5. Google AdSense e publicidade</h2>
+      <p>
+        O Krampt pode utilizar o Google AdSense para exibir e medir publicidade. O Google e seus
+        parceiros podem usar cookies, identificadores e outras tecnologias para fornecer,
+        personalizar e medir anúncios, de acordo com as políticas do Google e a legislação
+        aplicável. Quando exigido, uma plataforma de gestão de consentimento certificada pelo
+        Google pode ser apresentada antes do uso de tecnologias de publicidade não essenciais.
+      </p>
+      <p>
+        Você pode consultar as
+        <a href="https://policies.google.com/privacy" rel="noopener noreferrer">Políticas de Privacidade do Google</a>
+        e as
+        <a href="https://myadcenter.google.com/" rel="noopener noreferrer">configurações de anúncios do Google</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>6. Compartilhamento necessário</h2>
+      <p>
+        Informações podem ser processadas por provedores usados para hospedar a aplicação,
+        armazenar arquivos, enviar e-mails, proteger o serviço ou fornecer publicidade. Também
+        pode haver compartilhamento quando necessário para cumprir obrigação legal, proteger
+        direitos ou responder a situações de segurança e abuso.
+      </p>
+    </section>
+
+    <section>
+      <h2>7. Retenção e exclusão</h2>
+      <p>
+        Dados são mantidos enquanto forem necessários para operar a conta e os recursos
+        solicitados, preservar segurança e integridade do serviço ou cumprir obrigações
+        aplicáveis. Recursos de conta podem permitir exclusão ou desativação, e operações técnicas
+        de limpeza podem ocorrer de forma assíncrona.
+      </p>
+    </section>
+
+    <section>
+      <h2>8. Seus controles</h2>
+      <p>
+        Usuários autenticados podem gerenciar informações do perfil e preferências disponíveis
+        nas configurações da conta. Controles de consentimento publicitário, quando aplicáveis,
+        são apresentados pela plataforma de consentimento configurada no site.
+      </p>
+    </section>
+
+    <section>
+      <h2>9. Alterações desta política</h2>
+      <p>
+        Esta página pode ser atualizada conforme o Krampt evolui, novos recursos são adicionados
+        ou requisitos legais e de plataforma mudam. A data de atualização será exibida no topo.
+      </p>
+    </section>
+  </main>
+
+  {% include "includes/public_footer.html" %}
+{% endblock %}

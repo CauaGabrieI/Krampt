@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Termos de Uso | Krampt{% endblock %}
+{% block body_class %}public-page{% endblock %}
+{% block extra_head %}
+  <meta name="description" content="Termos de Uso do Krampt e regras gerais para contas, conteúdo e uso da plataforma.">
+  <link rel="stylesheet" href="{% static 'css/public.css' %}?v=public-site-1">
+{% endblock %}
+{% block content %}
+  <header class="public-nav">
+    <a class="public-brand" href="{% url 'home' %}" aria-label="Krampt">
+      <img src="{% static 'imgs/logo.png' %}" alt=""><span>Krampt</span>
+    </a>
+    <nav aria-label="Navegação principal">
+      <a href="{% url 'sobre' %}">Sobre</a>
+      <a href="{% url 'diretrizes' %}">Diretrizes</a>
+      <a href="{% url 'privacidade' %}">Privacidade</a>
+      <a href="{% url 'login:login' %}">Entrar</a>
+    </nav>
+  </header>
+
+  <main class="public-document">
+    <p class="public-eyebrow">Termos de Uso</p>
+    <h1>Regras gerais para usar o Krampt.</h1>
+    <p class="public-document-meta">Última atualização: {% now "d/m/Y" %}</p>
+    <p class="public-document-lead">
+      Ao criar uma conta e usar o Krampt, você concorda em utilizar o serviço de forma compatível
+      com estes termos e com as Diretrizes da Comunidade.
+    </p>
+
+    <section>
+      <h2>1. Conta e acesso</h2>
+      <p>
+        Você é responsável por fornecer informações válidas no cadastro, manter a segurança de
+        suas credenciais e pelas atividades realizadas em sua conta. Não compartilhe senhas nem
+        tente acessar contas de outras pessoas sem autorização.
+      </p>
+    </section>
+
+    <section>
+      <h2>2. Seu conteúdo</h2>
+      <p>
+        Você continua responsável pelo conteúdo que publica. Ao enviar conteúdo ao Krampt, você
+        autoriza o processamento, armazenamento e exibição desse material na medida necessária
+        para fornecer os recursos da plataforma e permitir as interações que você solicitar.
+      </p>
+    </section>
+
+    <section>
+      <h2>3. Uso aceitável</h2>
+      <p>
+        Você não deve usar o Krampt para atividades ilegais, fraude, spam, assédio, ameaças,
+        exploração, exposição indevida de dados pessoais, falsa identidade maliciosa ou outras
+        condutas proibidas pelas Diretrizes da Comunidade.
+      </p>
+    </section>
+
+    <section>
+      <h2>4. Moderação</h2>
+      <p>
+        O Krampt pode analisar denúncias e adotar medidas sobre conteúdo ou contas quando houver
+        violação das regras, risco à segurança do serviço ou necessidade de cumprir obrigações
+        aplicáveis. As medidas podem incluir limitação de recursos, remoção de conteúdo ou
+        desativação de conta, conforme a situação.
+      </p>
+    </section>
+
+    <section>
+      <h2>5. Disponibilidade do serviço</h2>
+      <p>
+        O serviço pode passar por manutenção, mudanças técnicas ou interrupções. Recursos podem
+        ser modificados para melhorar segurança, estabilidade, desempenho ou funcionamento da
+        plataforma.
+      </p>
+    </section>
+
+    <section>
+      <h2>6. Privacidade</h2>
+      <p>
+        O tratamento geral de informações é explicado na
+        <a href="{% url 'privacidade' %}">Política de Privacidade</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>7. Atualizações destes termos</h2>
+      <p>
+        Estes termos podem mudar quando o serviço ou seus requisitos mudarem. A versão vigente
+        será publicada nesta página com a respectiva data de atualização.
+      </p>
+    </section>
+  </main>
+
+  {% include "includes/public_footer.html" %}
+{% endblock %}

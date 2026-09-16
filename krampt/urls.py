@@ -35,6 +35,12 @@ from . import views
 
 urlpatterns = [ 
     path('ads.txt', views.ads_txt_view, name='ads_txt'),
+    path('sobre/', views.sobre_view, name='sobre'),
+    path('privacidade/', views.privacidade_view, name='privacidade'),
+    path('termos/', views.termos_view, name='termos'),
+    path('diretrizes-da-comunidade/', views.diretrizes_view, name='diretrizes'),
+    path('robots.txt', views.robots_txt_view, name='robots_txt'),
+    path('sitemap.xml', views.sitemap_xml_view, name='sitemap_xml'),
     path('', views.Index_view, name='home'),
     path('buscar/', views.buscar_view, name='buscar'),
     path('mensagens/', include("mensagens.urls")),
