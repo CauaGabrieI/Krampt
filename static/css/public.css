@@ -264,7 +264,8 @@
 .public-footer-inner {
   width: min(1180px, calc(100% - 40px));
   margin: 0 auto;
-  min-height: 120px;
+  min-height: 0;
+  padding: 16px 0;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
@@ -301,7 +302,7 @@
   .public-trust { grid-template-columns: 1fr; gap: 30px; }
   .public-footer-inner {
     grid-template-columns: 1fr;
-    padding: 30px 0;
+    padding: 16px 0;
     text-align: center;
   }
   .public-footer-links { justify-content: center; }
@@ -380,7 +381,7 @@
 }
 .auth-page .auth-layout {
   flex: 0 0 auto;
-  margin: 0 auto 28px;
+  margin: 0 auto;
 }
 .auth-page .public-footer {
   width: 100%;
