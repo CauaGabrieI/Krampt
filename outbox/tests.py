@@ -100,16 +100,17 @@ class OutboxTests(TestCase):
         self.assertTrue(evento.payload)
 
     def test_management_command_processa_fila(self):
-        enfileirar_email(
+        evento = enfileirar_email(
             "ana@example.com",
             "Assunto",
             "Olá",
         )
+        saida = StringIO()
 
         call_command(
             "process_outbox",
             "--once",
-            stdout=StringIO(),
+            stdout=saida,
         )
 
         self.assertEqual(len(mail.outbox), 1)
@@ -119,6 +120,13 @@ class OutboxTests(TestCase):
             ).count(),
             1,
         )
+        texto_saida = saida.getvalue()
+        self.assertIn(
+            f"Evento Outbox {evento.pk} processado com sucesso: email.enviar",
+            texto_saida,
+        )
+        self.assertNotIn("ana@example.com", texto_saida)
+        self.assertNotIn("Olá", texto_saida)
 
     def test_lease_expirada_pode_ser_reivindicada(self):
         evento = publicar_evento(

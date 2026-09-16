@@ -30,6 +30,13 @@ class Command(BaseCommand):
                 if resultado is None:
                     break
                 processados += 1
+                if resultado is not False:
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"Evento Outbox {resultado.pk} processado com sucesso: "
+                            f"{resultado.tipo}"
+                        )
+                    )
             self.stdout.write(
                 self.style.SUCCESS(
                     f"Outbox: {processados} evento(s) reivindicado(s)."
@@ -49,5 +56,13 @@ class Command(BaseCommand):
                 resultado = processar_proximo()
                 if resultado is None:
                     time.sleep(intervalo)
+                    continue
+                if resultado is not False:
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"Evento Outbox {resultado.pk} processado com sucesso: "
+                            f"{resultado.tipo}"
+                        )
+                    )
         except KeyboardInterrupt:
             self.stdout.write("Worker Outbox encerrado.")

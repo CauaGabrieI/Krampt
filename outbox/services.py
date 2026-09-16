@@ -206,4 +206,4 @@ def processar_proximo():
         return False
 
     _registrar_sucesso(evento)
-    return True
+    return evento
