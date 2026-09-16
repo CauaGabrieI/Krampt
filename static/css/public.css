@@ -356,3 +356,49 @@
 .auth-terms a:hover {
   color: var(--text);
 }
+
+/* Auth/public footer layout */
+.public-page {
+  display: flex;
+  flex-direction: column;
+}
+.public-page > main {
+  width: 100%;
+  flex: 1 0 auto;
+}
+.public-page .public-footer {
+  margin-top: auto;
+}
+
+.auth-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+.auth-page .auth-layout {
+  flex: 0 0 auto;
+  margin: auto 0 28px;
+}
+.auth-page .public-footer {
+  width: 100vw;
+  flex: 0 0 auto;
+  margin-top: auto;
+  margin-inline: calc(50% - 50vw);
+}
+.auth-page .public-footer-inner {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+}
+
+.password-rules[hidden] {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .auth-page .auth-layout {
+    width: 100%;
+    min-height: 0;
+    margin: auto 0 0;
+  }
+}

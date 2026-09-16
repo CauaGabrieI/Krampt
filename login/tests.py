@@ -58,6 +58,11 @@ class CadastroTests(TestCase):
         self.assertContains(response, reverse('termos'))
         self.assertContains(response, reverse('privacidade'))
         self.assertContains(response, reverse('diretrizes'))
+        self.assertContains(
+            response,
+            '<ul id="password-rules" class="password-rules" hidden>',
+            html=False,
+        )
 
     def test_rejeita_campos_invalidos_no_backend(self):
         casos = [dict(password_confirm='OutraSenha'), dict(password_confirm=''), dict(email='invalido'), dict(email='ana @example.com'), dict(username='!!!'), dict(username='   '), dict(name=' \t '), dict(username='a' * 151), dict(email='a' * 255 + '@example.com')]
