@@ -34,6 +34,7 @@ from . import views
 
 
 urlpatterns = [ 
+    path('ads.txt', views.ads_txt_view, name='ads_txt'),
     path('', views.Index_view, name='home'),
     path('buscar/', views.buscar_view, name='buscar'),
     path('mensagens/', include("mensagens.urls")),

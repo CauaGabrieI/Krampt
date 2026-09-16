@@ -1,5 +1,6 @@
 from django.contrib.auth import logout
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_not_required, login_required
+from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
@@ -14,6 +15,18 @@ from posts.selectors import (
 
 from .container import servico_comandos_post
 from .paginacao import parametros_sem_pagina, paginar
+
+
+ADSENSE_ADS_TXT = "google.com, pub-9158694826036840, DIRECT, f08c47fec0942fa0"
+
+
+@login_not_required
+@require_GET
+def ads_txt_view(request):
+    return HttpResponse(
+        ADSENSE_ADS_TXT + "\n",
+        content_type="text/plain; charset=utf-8",
+    )
 
 
 @login_required
