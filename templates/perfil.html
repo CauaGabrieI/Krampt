@@ -18,10 +18,7 @@
             <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
           </a>
           <div class="profile-page-heading-text">
-            <h1 class="profile-name-with-badges">
-              <span>{{ request.user.first_name|default:request.user.username }}</span>
-              {% include "includes/user_badges.html" with usuario=request.user %}
-            </h1>
+            <h1>{{ request.user.first_name|default:request.user.username }}</h1>
             <p>{{ total }} {% if total == 1 %}post{% else %}posts{% endif %}</p>
           </div>
         </div>

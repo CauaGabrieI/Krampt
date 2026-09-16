@@ -7,6 +7,7 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from outbox.models import EventoOutbox
+from profile.models import Perfil
 
 
 User = get_user_model()
@@ -254,3 +255,134 @@ class ApagarUsuariosAdminTests(TestCase):
         )
         self.assertEqual(resposta.status_code, 403)
         self.assertTrue(User.objects.filter(pk=self.alvo.pk).exists())
+
+class VerificarUsuariosAdminTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.admin = User.objects.create_user(
+            username="admin-verificacao",
+            password="senha",
+            is_staff=True,
+        )
+        cls.staff_sem_permissao = User.objects.create_user(
+            username="moderador-verificacao",
+            password="senha",
+            is_staff=True,
+        )
+        cls.comum = User.objects.create_user(
+            username="comum-verificacao",
+            password="senha",
+        )
+        cls.alvo = User.objects.create_user(
+            username="alvo-verificacao",
+            first_name="Alvo",
+            email="alvo-verificacao@example.com",
+            password="senha",
+        )
+        Perfil.objects.create(usuario=cls.alvo)
+
+        permissao = Permission.objects.get(
+            content_type__app_label="profile",
+            content_type__model="perfil",
+            codename="change_perfil",
+        )
+        cls.admin.user_permissions.add(permissao)
+
+    def test_visitante_vai_para_login(self):
+        resposta = self.client.get(reverse("admin_verificar_usuarios"))
+
+        self.assertRedirects(
+            resposta,
+            "/login/?next=/admin/verificar-usuarios/",
+        )
+
+    def test_staff_sem_permissao_nao_acessa(self):
+        self.client.force_login(self.staff_sem_permissao)
+
+        resposta = self.client.get(reverse("admin_verificar_usuarios"))
+
+        self.assertEqual(resposta.status_code, 403)
+        self.assertNotContains(
+            self.client.get(reverse("home")),
+            "Verificar usuários",
+        )
+
+    def test_usuario_comum_nao_acessa(self):
+        self.client.force_login(self.comum)
+
+        resposta = self.client.get(reverse("admin_verificar_usuarios"))
+
+        self.assertEqual(resposta.status_code, 403)
+
+    def test_admin_com_permissao_acessa_e_encontra_usuario(self):
+        self.client.force_login(self.admin)
+        url = reverse("admin_verificar_usuarios")
+
+        resposta = self.client.get(url, {"q": "alvo-verificacao"})
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "@alvo-verificacao")
+        self.assertContains(resposta, "Conceder verificado")
+        self.assertContains(self.client.get(reverse("home")), url)
+
+    def test_admin_concede_e_remove_verificado(self):
+        self.client.force_login(self.admin)
+        url = reverse("admin_verificar_usuarios")
+
+        resposta = self.client.post(
+            url,
+            {
+                "usuario_id": self.alvo.pk,
+                "desired_state": "1",
+            },
+        )
+        self.assertRedirects(resposta, url)
+        self.alvo.perfil.refresh_from_db()
+        self.assertTrue(self.alvo.perfil.verificado)
+
+        resposta = self.client.post(
+            url,
+            {
+                "usuario_id": self.alvo.pk,
+                "desired_state": "0",
+            },
+        )
+        self.assertRedirects(resposta, url)
+        self.alvo.perfil.refresh_from_db()
+        self.assertFalse(self.alvo.perfil.verificado)
+
+    def test_tela_cria_perfil_quando_usuario_ainda_nao_tem(self):
+        sem_perfil = User.objects.create_user(
+            username="sem-perfil-verificacao",
+            password="senha",
+        )
+        self.client.force_login(self.admin)
+
+        resposta = self.client.post(
+            reverse("admin_verificar_usuarios"),
+            {
+                "usuario_id": sem_perfil.pk,
+                "desired_state": "1",
+            },
+        )
+
+        self.assertEqual(resposta.status_code, 302)
+        self.assertTrue(
+            Perfil.objects.get(usuario=sem_perfil).verificado
+        )
+
+    def test_post_exige_csrf(self):
+        cliente = Client(enforce_csrf_checks=True)
+        cliente.force_login(self.admin)
+
+        resposta = cliente.post(
+            reverse("admin_verificar_usuarios"),
+            {
+                "usuario_id": self.alvo.pk,
+                "desired_state": "1",
+            },
+        )
+
+        self.assertEqual(resposta.status_code, 403)
+        self.alvo.perfil.refresh_from_db()
+        self.assertFalse(self.alvo.perfil.verificado)

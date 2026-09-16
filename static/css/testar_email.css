@@ -39,3 +39,46 @@
   .email-test-page { width: min(100% - 24px, 720px); margin-top: 24px; }
   .email-test-card { padding: 20px; }
 }
+
+.admin-verified-user-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+.admin-verified-user-row form {
+  grid-column: 1 / -1;
+}
+.admin-verified-user-row .primary-button,
+.admin-verified-user-row .settings-danger-button {
+  justify-self: start;
+}
+.admin-verified-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.admin-verified-status {
+  justify-self: end;
+}
+.admin-verified-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+.admin-verified-state.is-verified {
+  color: #60a5fa;
+}
+.admin-verified-state .material-symbols-outlined {
+  font-size: 17px;
+  font-variation-settings: "FILL" 1, "wght" 600, "GRAD" 0, "opsz" 20;
+}
+@media (max-width: 600px) {
+  .admin-verified-user-row {
+    grid-template-columns: 1fr;
+  }
+  .admin-verified-status {
+    justify-self: start;
+  }
+}

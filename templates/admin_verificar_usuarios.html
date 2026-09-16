@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Verificar usuários | Krampt{% endblock %}
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/testar_email.css' %}?v=verified-users-1">
+{% endblock %}
+{% block content %}
+  {% include "includes/site_header.html" %}
+  <main class="email-test-page">
+    <a class="email-test-back" href="{% url 'home' %}">← Voltar ao início</a>
+
+    <div class="email-test-heading">
+      <span class="eyebrow">Administração</span>
+      <h1>Verificar usuários</h1>
+      <p>Conceda ou remova o selo de conta verificada. O selo de STAFF continua automático para membros da equipe.</p>
+    </div>
+
+    <section class="email-test-card" aria-labelledby="verified-search-heading">
+      <h2 id="verified-search-heading">Buscar usuário</h2>
+      <form method="get" novalidate>
+        <label for="verified-user-search">Nome, username ou e-mail</label>
+        <input
+          id="verified-user-search"
+          name="q"
+          value="{{ termo }}"
+          placeholder="caua"
+          autocomplete="off"
+        >
+        <button class="primary-button" type="submit">Buscar</button>
+      </form>
+    </section>
+
+    <section class="email-test-card" aria-labelledby="verified-user-list-heading">
+      <h2 id="verified-user-list-heading">Usuários</h2>
+
+      {% if messages %}
+        {% for message in messages %}
+          <p class="{% if message.tags == 'success' %}email-test-success{% else %}email-test-error{% endif %}" role="status">
+            {{ message }}
+          </p>
+        {% endfor %}
+      {% endif %}
+
+      {% if usuarios %}
+        <div class="admin-user-list">
+          {% for usuario in usuarios %}
+            <article class="admin-user-row admin-verified-user-row">
+              <div class="admin-verified-user-info">
+                <div class="admin-verified-name">
+                  <strong>{{ usuario.first_name|default:usuario.username }}</strong>
+                  {% include "includes/user_badges.html" with usuario=usuario %}
+                </div>
+                <span>@{{ usuario.username }}</span>
+                <span>{{ usuario.email|default:"Sem e-mail" }}</span>
+              </div>
+
+              <div class="admin-verified-status">
+                {% if usuario.perfil.verificado %}
+                  <span class="admin-verified-state is-verified">
+                    <span class="material-symbols-outlined" aria-hidden="true">verified</span>
+                    Verificado
+                  </span>
+                {% else %}
+                  <span class="admin-verified-state">
+                    Não verificado
+                  </span>
+                {% endif %}
+              </div>
+
+              <form method="post" data-submit-once>
+                {% csrf_token %}
+                <input type="hidden" name="usuario_id" value="{{ usuario.pk }}">
+                <input
+                  type="hidden"
+                  name="desired_state"
+                  value="{% if usuario.perfil.verificado %}0{% else %}1{% endif %}"
+                >
+                {% if usuario.perfil.verificado %}
+                  <button class="settings-danger-button" type="submit">
+                    Remover verificado
+                  </button>
+                {% else %}
+                  <button class="primary-button" type="submit">
+                    Conceder verificado
+                  </button>
+                {% endif %}
+              </form>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="email-test-note">Nenhum usuário encontrado.</p>
+      {% endif %}
+    </section>
+  </main>
+{% endblock %}
+{% block scripts %}
+  <script src="{% static 'js/header_search.js' %}" defer></script>
+  <script src="{% static 'js/account_menu.js' %}" defer></script>
+{% endblock %}

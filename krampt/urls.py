@@ -24,7 +24,11 @@ from login.views import (
     reativar_conta_view,
     verificar_email_view,
 )
-from login.admin_views import apagar_usuarios_view, testar_email_view
+from login.admin_views import (
+    apagar_usuarios_view,
+    testar_email_view,
+    verificar_usuarios_view,
+)
 from . import views
 
 
@@ -39,6 +43,7 @@ urlpatterns = [
     path('conta/reativar/<str:token>/', reativar_conta_token_view, name='reativar_conta_token'),
     path('admin/testar-email/', testar_email_view, name='testar_email'),
     path('admin/apagar-usuarios/', apagar_usuarios_view, name='admin_apagar_usuarios'),
+    path('admin/verificar-usuarios/', verificar_usuarios_view, name='admin_verificar_usuarios'),
     path('admin/', admin.site.urls),
     path('perfil/', include("profile.urls")),
     path('login/', include("login.urls")),

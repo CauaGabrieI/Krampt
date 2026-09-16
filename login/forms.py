@@ -144,3 +144,10 @@ class AdminExcluirUsuarioForm(forms.Form):
         strip=False,
         widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}),
     )
+
+class AdminVerificarUsuarioForm(forms.Form):
+    usuario_id = forms.IntegerField(widget=forms.HiddenInput)
+    desired_state = forms.ChoiceField(
+        choices=(("1", "Verificar"), ("0", "Remover verificação")),
+        widget=forms.HiddenInput,
+    )

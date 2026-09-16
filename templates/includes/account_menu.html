@@ -22,6 +22,12 @@
         <span class="material-symbols-outlined" aria-hidden="true">mail</span>
         <span>Testar e-mail</span>
       </a>
+      {% if perms.profile.change_perfil %}
+        <a class="account-menu-item" href="{% url 'admin_verificar_usuarios' %}">
+          <span class="material-symbols-outlined" aria-hidden="true">verified</span>
+          <span>Verificar usuários</span>
+        </a>
+      {% endif %}
       {% if perms.auth.delete_user %}
         <a class="account-menu-item" href="{% url 'admin_apagar_usuarios' %}">
           <span class="material-symbols-outlined" aria-hidden="true">person_remove</span>

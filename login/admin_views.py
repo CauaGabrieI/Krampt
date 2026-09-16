@@ -5,19 +5,22 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied
 from django.contrib import messages
+from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_http_methods
 
 from configuracoes.services import excluir_conta_com_limpeza
 from outbox.services import enfileirar_email
+from profile.models import Perfil
 
-from .forms import AdminExcluirUsuarioForm, TesteEmailForm
+from .forms import AdminExcluirUsuarioForm, AdminVerificarUsuarioForm, TesteEmailForm
 
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
 DELETE_USER_PERMISSION = f"{User._meta.app_label}.delete_{User._meta.model_name}"
+VERIFY_PROFILE_PERMISSION = f"{Perfil._meta.app_label}.change_{Perfil._meta.model_name}"
 
 
 @login_required
@@ -107,4 +110,60 @@ def apagar_usuarios_view(request):
         request,
         "admin_apagar_usuarios.html",
         {"usuarios": usuarios, "termo": termo, "formulario": formulario},
+    )
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def verificar_usuarios_view(request):
+    if (
+        not request.user.is_active
+        or not request.user.is_staff
+        or not request.user.has_perm(VERIFY_PROFILE_PERMISSION)
+    ):
+        raise PermissionDenied
+
+    termo = request.GET.get("q", "").strip()
+    usuarios = User.objects.select_related("perfil").order_by("username")
+    if termo:
+        usuarios = usuarios.filter(
+            Q(username__icontains=termo)
+            | Q(first_name__icontains=termo)
+            | Q(email__icontains=termo)
+        )
+    usuarios = usuarios[:50]
+
+    if request.method == "POST":
+        formulario = AdminVerificarUsuarioForm(request.POST)
+        if formulario.is_valid():
+            alvo = User.objects.filter(pk=formulario.cleaned_data["usuario_id"]).first()
+            if not alvo:
+                messages.error(request, "Usuário não encontrado.")
+            else:
+                perfil, _ = Perfil.objects.get_or_create(usuario=alvo)
+                verificado = formulario.cleaned_data["desired_state"] == "1"
+                if perfil.verificado != verificado:
+                    perfil.verificado = verificado
+                    perfil.save(update_fields=["verificado"])
+
+                if verificado:
+                    messages.success(
+                        request,
+                        f"Selo de verificado concedido a @{alvo.username}.",
+                    )
+                else:
+                    messages.success(
+                        request,
+                        f"Selo de verificado removido de @{alvo.username}.",
+                    )
+                return redirect("admin_verificar_usuarios")
+        else:
+            messages.error(request, "Não foi possível alterar a verificação.")
+
+    return render(
+        request,
+        "admin_verificar_usuarios.html",
+        {
+            "usuarios": usuarios,
+            "termo": termo,
+        },
     )

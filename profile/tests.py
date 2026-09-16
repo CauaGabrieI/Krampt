@@ -828,6 +828,22 @@ class SelosDeContaTests(TestCase):
         self.assertContains(resposta, 'data-user-badge="verified"')
         self.assertContains(resposta, 'data-user-badge="staff"')
 
+    def test_heading_do_perfil_nao_mostra_selos(self):
+        self.client.force_login(self.visitante)
+
+        publico = self.client.get(
+            reverse("profile:perfil_publico", args=[self.verificado.username])
+        ).content.decode()
+        inicio = publico.index('<div class="feed-heading profile-page-heading">')
+        fim = publico.index('<dialog class="post-dialog"', inicio)
+        self.assertNotIn('data-user-badge=', publico[inicio:fim])
+
+        self.client.force_login(self.staff)
+        proprio = self.client.get(reverse("profile:perfil")).content.decode()
+        inicio = proprio.index('<div class="feed-heading profile-page-heading">')
+        fim = proprio.index('<div class="profile-cover', inicio)
+        self.assertNotIn('data-user-badge=', proprio[inicio:fim])
+
     def test_edicao_normal_de_perfil_nao_expoe_verificado(self):
         from .forms import EditarPerfilForm
 
