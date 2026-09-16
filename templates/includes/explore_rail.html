@@ -25,7 +25,10 @@
           <a class="who-to-follow-info" href="{% url 'profile:perfil_publico' sugestao.username %}">
             {% include "includes/avatar.html" with usuario=sugestao avatar_class="avatar-small" %}
             <span class="who-to-follow-text">
-              <strong>{{ sugestao.first_name|default:sugestao.username }}</strong>
+              <span class="user-name-line">
+                <strong>{{ sugestao.first_name|default:sugestao.username }}</strong>
+                {% include "includes/user_badges.html" with usuario=sugestao %}
+              </span>
               <span>@{{ sugestao.username }}</span>
             </span>
           </a>

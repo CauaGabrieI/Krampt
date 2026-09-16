@@ -37,7 +37,10 @@
                   <a class="profile-relation-user" href="{% url 'profile:perfil_publico' pessoa.username %}">
                     {% include "includes/avatar.html" with usuario=pessoa avatar_class="avatar-small" %}
                     <span class="profile-relation-text">
-                      <strong>{{ pessoa.first_name|default:pessoa.username }}</strong>
+                      <span class="user-name-line">
+                        <strong>{{ pessoa.first_name|default:pessoa.username }}</strong>
+                        {% include "includes/user_badges.html" with usuario=pessoa %}
+                      </span>
                       <span>@{{ pessoa.username }}</span>
                       {% if pessoa.perfil.biografia %}<small>{{ pessoa.perfil.biografia }}</small>{% endif %}
                     </span>

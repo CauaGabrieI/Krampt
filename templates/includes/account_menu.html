@@ -4,6 +4,7 @@
           type="button" aria-label="Abrir opções da conta" aria-expanded="false" aria-controls="{{ menu_id }}">
     {% include "includes/avatar.html" with usuario=request.user avatar_class="avatar-small" %}
     <span class="account-menu-name">{{ request.user.first_name|default:request.user.username }}</span>
+    {% include "includes/user_badges.html" with usuario=request.user %}
     <img class="account-menu-chevron" src="{% static 'imgs/acento-circunflexo.png' %}" alt="" aria-hidden="true">
   </button>
 

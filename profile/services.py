@@ -50,7 +50,9 @@ def sugestoes_de_seguir(usuario, limite=6):
     excluidos.update(usuarios_bloqueados_ids(usuario))
     excluidos.add(usuario.pk)
     return list(
-        User.objects.exclude(pk__in=excluidos).order_by("-date_joined", "username")[:limite]
+        User.objects.exclude(pk__in=excluidos)
+        .select_related("perfil")
+        .order_by("-date_joined", "username")[:limite]
     )
 
 
@@ -58,7 +60,11 @@ def usuarios_seguidos(usuario, limite=6):
     ids = seguindo_ids(usuario)
     if not ids:
         return []
-    return list(User.objects.filter(pk__in=ids).order_by("username")[:limite])
+    return list(
+        User.objects.filter(pk__in=ids)
+        .select_related("perfil")
+        .order_by("username")[:limite]
+    )
 
 
 def salvar_edicao_perfil(usuario, perfil, dados):

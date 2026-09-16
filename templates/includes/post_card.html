@@ -15,7 +15,10 @@
       <div class="post-header">
         <div class="post-identity">
           <a class="post-author-link" href="{% url 'profile:perfil_publico' original.autor.username %}">
-            <strong>{{ original.autor.first_name|default:original.autor.username }}</strong>
+            <span class="user-name-line">
+              <strong>{{ original.autor.first_name|default:original.autor.username }}</strong>
+              {% include "includes/user_badges.html" with usuario=original.autor %}
+            </span>
             <span>@{{ original.autor.username }}</span>
           </a>
           <span aria-hidden="true">·</span>

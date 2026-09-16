@@ -7,7 +7,10 @@
         <div class="comment-header">
           <a class="comment-author" href="{% url 'profile:perfil_publico' comentario.autor.username %}">
             {% include "includes/avatar.html" with usuario=comentario.autor avatar_class="comment-avatar" %}
-            <strong>{{ comentario.autor.first_name|default:comentario.autor.username }}</strong>
+            <span class="user-name-line">
+              <strong>{{ comentario.autor.first_name|default:comentario.autor.username }}</strong>
+              {% include "includes/user_badges.html" with usuario=comentario.autor %}
+            </span>
             <span class="comment-author-handle">@{{ comentario.autor.username }}</span>
           </a>
           <form method="post" action="{% url 'posts:curtir_comentario' comentario.id %}" data-async-action data-action-type="comment-like">
@@ -42,7 +45,10 @@
                 <a class="comment-reply-author" href="{% url 'profile:perfil_publico' resposta.autor.username %}">
                   {% include "includes/avatar.html" with usuario=resposta.autor avatar_class="reply-avatar" %}
                   <div>
-                    <strong>{{ resposta.autor.first_name|default:resposta.autor.username }}</strong>
+                    <span class="user-name-line">
+                      <strong>{{ resposta.autor.first_name|default:resposta.autor.username }}</strong>
+                      {% include "includes/user_badges.html" with usuario=resposta.autor %}
+                    </span>
                     <span>@{{ resposta.autor.username }}</span>
                   </div>
                 </a>

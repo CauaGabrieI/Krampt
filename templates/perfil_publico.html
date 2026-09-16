@@ -18,7 +18,10 @@
             <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
           </a>
           <div class="profile-page-heading-text">
-            <h1>{{ perfil_usuario.first_name|default:perfil_usuario.username }}</h1>
+            <h1 class="profile-name-with-badges">
+              <span>{{ perfil_usuario.first_name|default:perfil_usuario.username }}</span>
+              {% include "includes/user_badges.html" with usuario=perfil_usuario %}
+            </h1>
             <p>{{ total }} {% if total == 1 %}post{% else %}posts{% endif %}</p>
           </div>
           <div class="post-menu profile-heading-menu" data-post-menu>
@@ -89,7 +92,10 @@
               {% endif %}
             </div>
           </div>
-          <h2>{{ perfil_usuario.first_name|default:perfil_usuario.username }}</h2>
+          <h2 class="profile-name-with-badges">
+            <span>{{ perfil_usuario.first_name|default:perfil_usuario.username }}</span>
+            {% include "includes/user_badges.html" with usuario=perfil_usuario %}
+          </h2>
           <p class="profile-handle">@{{ perfil_usuario.username }}</p>
           {% if perfil.biografia %}<p class="profile-bio">{{ perfil.biografia|linebreaksbr }}</p>{% endif %}
           <p class="profile-joined">

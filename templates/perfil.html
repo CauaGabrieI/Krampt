@@ -18,7 +18,10 @@
             <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
           </a>
           <div class="profile-page-heading-text">
-            <h1>{{ request.user.first_name|default:request.user.username }}</h1>
+            <h1 class="profile-name-with-badges">
+              <span>{{ request.user.first_name|default:request.user.username }}</span>
+              {% include "includes/user_badges.html" with usuario=request.user %}
+            </h1>
             <p>{{ total }} {% if total == 1 %}post{% else %}posts{% endif %}</p>
           </div>
         </div>
@@ -38,7 +41,10 @@
               <a class="profile-action" href="{% url 'profile:editar' %}">Editar perfil</a>
             </div>
           </div>
-          <h2>{{ request.user.first_name|default:request.user.username }}</h2>
+          <h2 class="profile-name-with-badges">
+            <span>{{ request.user.first_name|default:request.user.username }}</span>
+            {% include "includes/user_badges.html" with usuario=request.user %}
+          </h2>
           <p class="profile-handle">@{{ request.user.username }}</p>
           {% if request.user.perfil.biografia %}<p class="profile-bio">{{ request.user.perfil.biografia|linebreaksbr }}</p>{% endif %}
           <p class="profile-joined">

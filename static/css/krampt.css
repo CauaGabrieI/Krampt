@@ -763,3 +763,53 @@ textarea::placeholder {
   .auth-page { padding: 12px; }
   .auth-panel { padding: 32px 22px; }
 }
+
+/* Selos de identidade */
+.user-name-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.user-badges {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  vertical-align: middle;
+}
+.user-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  white-space: nowrap;
+}
+.user-badge--verified {
+  color: #60a5fa;
+}
+.user-badge--verified .material-symbols-outlined {
+  font-size: 17px;
+  font-variation-settings: "FILL" 1, "wght" 600, "GRAD" 0, "opsz" 20;
+}
+.user-badge--staff {
+  gap: 3px;
+  min-height: 18px;
+  padding: 2px 5px;
+  border: 1px solid rgba(167, 139, 250, .55);
+  background: rgba(124, 58, 237, .13);
+  color: var(--primary-light);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .055em;
+}
+.user-badge--staff .material-symbols-outlined {
+  font-size: 13px;
+  font-variation-settings: "FILL" 1, "wght" 650, "GRAD" 0, "opsz" 18;
+}
+.profile-name-with-badges {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}

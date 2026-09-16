@@ -757,3 +757,78 @@ class DenunciarUsuarioTests(TestCase):
                 args=[self.alvo.username],
             ),
         )
+
+class SelosDeContaTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        user_model = get_user_model()
+        cls.visitante = user_model.objects.create_user(
+            username="visitante-selos",
+            password="senha-teste",
+        )
+        cls.verificado = user_model.objects.create_user(
+            username="verificado",
+            first_name="Verificado",
+            password="senha-teste",
+        )
+        cls.staff = user_model.objects.create_user(
+            username="equipe",
+            first_name="Equipe",
+            password="senha-teste",
+            is_staff=True,
+        )
+        cls.normal = user_model.objects.create_user(
+            username="normal",
+            first_name="Normal",
+            password="senha-teste",
+        )
+        Perfil.objects.create(usuario=cls.verificado, verificado=True)
+        Perfil.objects.create(usuario=cls.staff)
+        Perfil.objects.create(usuario=cls.normal)
+        Post.objects.create(autor=cls.verificado, conteudo="Post verificado")
+        Post.objects.create(autor=cls.staff, conteudo="Post da equipe")
+
+    def test_perfil_novo_nao_e_verificado_por_padrao(self):
+        perfil = Perfil.objects.create(
+            usuario=get_user_model().objects.create_user(
+                username="sem-selo",
+                password="senha-teste",
+            )
+        )
+        self.assertFalse(perfil.verificado)
+
+    def test_perfil_publico_mostra_selo_verificado(self):
+        self.client.force_login(self.visitante)
+
+        resposta = self.client.get(
+            reverse("profile:perfil_publico", args=[self.verificado.username])
+        )
+
+        self.assertContains(resposta, 'data-user-badge="verified"')
+        self.assertContains(resposta, 'title="Conta verificada"')
+
+    def test_staff_recebe_selo_automaticamente(self):
+        self.client.force_login(self.visitante)
+
+        resposta = self.client.get(
+            reverse("profile:perfil_publico", args=[self.staff.username])
+        )
+
+        self.assertContains(resposta, 'data-user-badge="staff"')
+        self.assertContains(resposta, "STAFF")
+        self.assertContains(resposta, "Membro da equipe Krampt")
+
+    def test_feed_mostra_os_dois_tipos_de_selo(self):
+        self.client.force_login(self.visitante)
+
+        resposta = self.client.get(reverse("home"))
+
+        self.assertContains(resposta, "Post verificado")
+        self.assertContains(resposta, "Post da equipe")
+        self.assertContains(resposta, 'data-user-badge="verified"')
+        self.assertContains(resposta, 'data-user-badge="staff"')
+
+    def test_edicao_normal_de_perfil_nao_expoe_verificado(self):
+        from .forms import EditarPerfilForm
+
+        self.assertNotIn("verificado", EditarPerfilForm().fields)

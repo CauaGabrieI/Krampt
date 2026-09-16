@@ -1,0 +1,21 @@
+{% if usuario.perfil.verificado or usuario.is_staff %}
+  <span class="user-badges" aria-label="Selos da conta">
+    {% if usuario.perfil.verificado %}
+      <span class="user-badge user-badge--verified"
+            data-user-badge="verified"
+            title="Conta verificada"
+            aria-label="Conta verificada">
+        <span class="material-symbols-outlined" aria-hidden="true">verified</span>
+      </span>
+    {% endif %}
+    {% if usuario.is_staff %}
+      <span class="user-badge user-badge--staff"
+            data-user-badge="staff"
+            title="Membro da equipe Krampt"
+            aria-label="Membro da equipe Krampt">
+        <span class="material-symbols-outlined" aria-hidden="true">shield_person</span>
+        <span class="user-badge-label">STAFF</span>
+      </span>
+    {% endif %}
+  </span>
+{% endif %}
