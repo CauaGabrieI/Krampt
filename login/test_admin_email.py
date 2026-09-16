@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from django.core import mail
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
@@ -124,8 +125,20 @@ class ApagarUsuariosAdminTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.admin = User.objects.create_user(username="admin", password="senha", is_staff=True)
+        cls.staff_sem_permissao = User.objects.create_user(
+            username="moderador",
+            password="senha",
+            is_staff=True,
+        )
         cls.comum = User.objects.create_user(username="comum", password="senha")
         cls.alvo = User.objects.create_user(username="alvo", email="alvo@example.com", password="senha")
+
+        permissao = Permission.objects.get(
+            content_type__app_label=User._meta.app_label,
+            content_type__model=User._meta.model_name,
+            codename=f"delete_{User._meta.model_name}",
+        )
+        cls.admin.user_permissions.add(permissao)
 
     def test_visitante_vai_para_login(self):
         resposta = self.client.get(reverse("admin_apagar_usuarios"))
@@ -149,6 +162,28 @@ class ApagarUsuariosAdminTests(TestCase):
         )
         self.assertTrue(User.objects.filter(pk=self.alvo.pk).exists())
         self.assertNotContains(self.client.get(reverse("home")), "Apagar usuários")
+
+    def test_staff_sem_permissao_nao_acessa_nem_apaga(self):
+        self.client.force_login(self.staff_sem_permissao)
+        url = reverse("admin_apagar_usuarios")
+
+        self.assertEqual(self.client.get(url).status_code, 403)
+        self.assertEqual(
+            self.client.post(
+                url,
+                {
+                    "usuario_id": self.alvo.pk,
+                    "confirmacao": "alvo",
+                    "senha_admin": "senha",
+                },
+            ).status_code,
+            403,
+        )
+        self.assertTrue(User.objects.filter(pk=self.alvo.pk).exists())
+        self.assertNotContains(
+            self.client.get(reverse("home")),
+            "Apagar usuários",
+        )
 
     def test_admin_apaga_usuario_com_confirmacao_e_senha(self):
         self.client.force_login(self.admin)

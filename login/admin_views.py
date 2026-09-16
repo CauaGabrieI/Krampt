@@ -17,6 +17,7 @@ from .forms import AdminExcluirUsuarioForm, TesteEmailForm
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
+DELETE_USER_PERMISSION = f"{User._meta.app_label}.delete_{User._meta.model_name}"
 
 
 @login_required
@@ -68,7 +69,11 @@ def testar_email_view(request):
 @sensitive_post_parameters("senha_admin")
 @require_http_methods(["GET", "POST"])
 def apagar_usuarios_view(request):
-    if not request.user.is_active or not request.user.is_staff:
+    if (
+        not request.user.is_active
+        or not request.user.is_staff
+        or not request.user.has_perm(DELETE_USER_PERMISSION)
+    ):
         raise PermissionDenied
 
     termo = request.GET.get("q", "").strip()
