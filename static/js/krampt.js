@@ -6,13 +6,21 @@
       return;
     }
 
-    const form = event.target.closest('form[data-submit-once]');
-    if (!form || form.dataset.submitting === 'true') {
-      if (form) event.preventDefault();
+    const form = event.target.closest('form');
+    if (!form) return;
+
+    const metodo = (form.getAttribute('method') || 'get').toLowerCase();
+    if (metodo !== 'post' || form.hasAttribute('data-async-action')) return;
+
+    if (form.dataset.submitting === 'true') {
+      event.preventDefault();
       return;
     }
     form.dataset.submitting = 'true';
-    const botao = form.querySelector('button[type="submit"]');
+
+    if (!form.hasAttribute('data-submit-once')) return;
+
+    const botao = event.submitter || form.querySelector('button[type="submit"]');
     if (botao) {
       botao.disabled = true;
       botao.dataset.originalText = botao.textContent;
@@ -24,7 +32,13 @@
     const form = event.target.closest('form[data-async-action]');
     if (!form) return;
     event.preventDefault();
+
+    if (form.dataset.asyncSubmitting === 'true') return;
+    form.dataset.asyncSubmitting = 'true';
     form.setAttribute('aria-busy', 'true');
+
+    const submitter = event.submitter;
+    if (submitter) submitter.disabled = true;
 
     try {
       const resposta = await fetch(form.action, {
@@ -43,12 +57,17 @@
           botao.classList.toggle('is-saved', dados.saved);
           botao.setAttribute('aria-pressed', String(dados.saved));
           botao.setAttribute('aria-label', dados.saved ? 'Remover dos salvos' : 'Salvar post');
+          const estado = form.querySelector('[name="desired_state"]');
+          if (estado) estado.value = dados.saved ? '0' : '1';
           const icone = botao.querySelector('.save-icon');
           if (icone) icone.src = dados.saved ? '/static/imgs/marca-paginas%20preenchido.png' : '/static/imgs/marca-paginas.png';
         } else if (botao && typeof dados.total === 'number') {
+          const ativo = tipo === 'repost' ? dados.reposted : dados.liked;
           botao.classList.toggle('is-liked', tipo !== 'repost' && dados.liked);
           botao.classList.toggle('is-reposted', tipo === 'repost' && dados.reposted);
-          botao.setAttribute('aria-pressed', String(tipo === 'repost' ? dados.reposted : dados.liked));
+          botao.setAttribute('aria-pressed', String(ativo));
+          const estado = form.querySelector('[name="desired_state"]');
+          if (estado) estado.value = ativo ? '0' : '1';
 
           if (tipo === 'like') {
             botao.setAttribute('aria-label', dados.liked ? 'Descurtir' : 'Curtir');
@@ -159,6 +178,8 @@
       form.insertAdjacentElement('afterend', aviso);
     } finally {
       form.removeAttribute('aria-busy');
+      delete form.dataset.asyncSubmitting;
+      if (submitter && submitter.isConnected) submitter.disabled = false;
     }
   });
 

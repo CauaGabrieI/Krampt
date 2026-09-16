@@ -20,6 +20,7 @@
       <div class="feed-scroll" tabindex="0" role="region" aria-label="Feed de publicações">
       <form class="create-post" id="composer" method="post" action="{% url 'home' %}" enctype="multipart/form-data" data-submit-once>
         {% csrf_token %}
+        <input type="hidden" name="idempotency_key" value="{{ mutation_seed }}-post">
         {% include "includes/avatar.html" with usuario=request.user %}
         <div class="composer-main field-float">
           <textarea id="conteudo" name="conteudo" rows="3" placeholder=" ">{{ formulario.conteudo.value|default:'' }}</textarea>

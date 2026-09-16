@@ -37,6 +37,7 @@
                 <input type="hidden" name="return_path" value="{{ request.get_full_path }}">
                 <input type="hidden" name="return_to" value="{{ return_to }}">
                 <input type="hidden" name="entry_id" value="{{ post.id }}">
+                <input type="hidden" name="desired_state" value="{% if original.fixado_pelo_usuario %}0{% else %}1{% endif %}">
                 <button type="submit" role="menuitem">
                   <span class="material-symbols-outlined" aria-hidden="true">keep</span>
                   {% if original.fixado_pelo_usuario %}Desafixar do perfil{% else %}Fixar no perfil{% endif %}
@@ -74,6 +75,7 @@
               <form method="post" action="{% url 'profile:seguir' original.autor.pk %}">
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <input type="hidden" name="desired_state" value="{% if original.autor.pk in seguindo_ids %}0{% else %}1{% endif %}">
                 <button type="submit" role="menuitem">
                   <span class="material-symbols-outlined" aria-hidden="true">person_add</span>
                   {% if original.autor.pk in seguindo_ids %}Deixar de seguir{% else %}Seguir{% endif %} @{{ original.autor.username }}
@@ -105,6 +107,7 @@
               <form method="post" action="{% url 'posts:salvar' original.id %}">
                 {% csrf_token %}
                 <input type="hidden" name="return_path" value="{{ request.get_full_path }}">
+                <input type="hidden" name="desired_state" value="{% if original.salvo_pelo_usuario %}0{% else %}1{% endif %}">
                 <button type="submit" role="menuitem">
                   <span class="material-symbols-outlined" aria-hidden="true">bookmark</span>
                   {% if original.salvo_pelo_usuario %}Remover dos salvos{% else %}Salvar post{% endif %}
@@ -194,6 +197,7 @@
           <input type="hidden" name="return_path" value="{{ request.get_full_path }}">
           <input type="hidden" name="return_to" value="{{ return_to }}">
           <input type="hidden" name="entry_id" value="{{ post.id }}">
+          <input type="hidden" name="desired_state" value="{% if original.curtido_pelo_usuario %}0{% else %}1{% endif %}">
           <button class="post-action{% if original.curtido_pelo_usuario %} is-liked{% endif %}" type="submit" aria-label="{% if original.curtido_pelo_usuario %}Descurtir{% else %}Curtir{% endif %}" aria-pressed="{% if original.curtido_pelo_usuario %}true{% else %}false{% endif %}">
             <img
               class="like-icon"
@@ -213,6 +217,7 @@
           <input type="hidden" name="return_path" value="{{ request.get_full_path }}">
           <input type="hidden" name="return_to" value="{{ return_to }}">
           <input type="hidden" name="entry_id" value="{{ post.id }}">
+          <input type="hidden" name="desired_state" value="{% if original.republicado_pelo_usuario %}0{% else %}1{% endif %}">
           <button class="post-action{% if original.republicado_pelo_usuario %} is-reposted{% endif %}" type="submit" aria-label="{% if original.republicado_pelo_usuario %}Desfazer republicação{% else %}Republicar{% endif %}" aria-pressed="{% if original.republicado_pelo_usuario %}true{% else %}false{% endif %}">
             <span class="material-symbols-outlined" aria-hidden="true">repeat</span>
             <span>{{ original.total_republicacoes }}</span>
@@ -221,6 +226,7 @@
         <form method="post" action="{% url 'posts:salvar' original.id %}" data-async-action data-action-type="save">
           {% csrf_token %}
           <input type="hidden" name="entry_id" value="{{ post.id }}">
+          <input type="hidden" name="desired_state" value="{% if original.salvo_pelo_usuario %}0{% else %}1{% endif %}">
           <button class="post-action{% if original.salvo_pelo_usuario %} is-saved{% endif %}" type="submit" aria-label="{% if original.salvo_pelo_usuario %}Remover dos salvos{% else %}Salvar post{% endif %}" aria-pressed="{% if original.salvo_pelo_usuario %}true{% else %}false{% endif %}">
             <img class="save-icon" src="{% if original.salvo_pelo_usuario %}{% static 'imgs/marca-paginas preenchido.png' %}{% else %}{% static 'imgs/marca-paginas.png' %}{% endif %}" width="19" height="19" alt="" aria-hidden="true">
           </button>
@@ -243,6 +249,7 @@
           <input type="hidden" name="return_path" value="{{ request.get_full_path }}">
           <input type="hidden" name="return_to" value="{{ return_to }}">
           <input type="hidden" name="entry_id" value="{{ post.id }}">
+          <input type="hidden" name="idempotency_key" value="{{ mutation_seed }}-comment-{{ original.id }}">
           <textarea id="comment-content-{{ post.id }}" name="conteudo" rows="2" maxlength="280" placeholder=" "></textarea>
           <label for="comment-content-{{ post.id }}">Deixe um comentário</label>
           <div class="comment-compose-tools">

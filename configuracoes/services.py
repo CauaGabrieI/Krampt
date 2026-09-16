@@ -231,8 +231,9 @@ def excluir_conta_com_limpeza(usuario):
     try:
         with suspender_limpeza_automatica_de_midias():
             with transaction.atomic():
-                Conversa.objects.filter(participantes=usuario).delete()
-                usuario.delete()
+                usuario_bloqueado = User.objects.select_for_update().get(pk=usuario_pk)
+                Conversa.objects.filter(participantes=usuario_bloqueado).delete()
+                usuario_bloqueado.delete()
     except Exception:
         logger.exception("Falha ao excluir conta do usuário %s.", usuario_pk)
         raise

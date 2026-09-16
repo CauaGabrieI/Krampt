@@ -14,6 +14,7 @@
             {% csrf_token %}
             <input type="hidden" name="return_to" value="{{ return_to }}">
             <input type="hidden" name="entry_id" value="{{ post.id }}">
+            <input type="hidden" name="desired_state" value="{% if comentario.curtido_pelo_usuario %}0{% else %}1{% endif %}">
             <button class="post-action comment-like{% if comentario.curtido_pelo_usuario %} is-liked{% endif %}" type="submit" aria-label="{% if comentario.curtido_pelo_usuario %}Descurtir comentário{% else %}Curtir comentário{% endif %}" aria-pressed="{% if comentario.curtido_pelo_usuario %}true{% else %}false{% endif %}">
               <span class="material-symbols-outlined" aria-hidden="true">favorite</span>
               <span>{{ comentario.total_curtidas }}</span>
@@ -67,6 +68,7 @@
           {% csrf_token %}
           <input type="hidden" name="return_to" value="{{ return_to }}">
           <input type="hidden" name="entry_id" value="{{ post.id }}">
+          <input type="hidden" name="idempotency_key" value="{{ mutation_seed }}-reply-{{ comentario.id }}">
           <textarea id="reply-{{ comentario.id }}" name="conteudo" rows="1" maxlength="280" placeholder=" "></textarea>
           <label for="reply-{{ comentario.id }}">Responder</label>
           <div class="comment-compose-tools">

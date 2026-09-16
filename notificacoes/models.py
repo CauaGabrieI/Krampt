@@ -41,6 +41,13 @@ class Notificacao(models.Model):
     )
     criado_em = models.DateTimeField(auto_now_add=True)
     lida = models.BooleanField(default=False)
+    chave_evento = models.CharField(
+        max_length=128,
+        unique=True,
+        null=True,
+        blank=True,
+        editable=False,
+    )
 
     class Meta:
         ordering = ["-criado_em", "-pk"]

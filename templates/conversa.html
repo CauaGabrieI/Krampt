@@ -56,8 +56,9 @@
       {% include "includes/paginacao.html" %}
 
       {% if envio_permitido %}
-        <form class="dm-composer" method="post" action="{% url 'mensagens:detalhe' conversa.pk %}" aria-label="Enviar mensagem">
+        <form class="dm-composer" method="post" action="{% url 'mensagens:detalhe' conversa.pk %}" aria-label="Enviar mensagem" data-submit-once>
           {% csrf_token %}
+          <input type="hidden" name="idempotency_key" value="{{ mutation_seed }}-message-{{ conversa.pk }}">
           {{ formulario.conteudo }}
           <button class="primary-button dm-send" type="submit" aria-label="Enviar mensagem">
             <span class="material-symbols-outlined" aria-hidden="true">send</span>

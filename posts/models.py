@@ -43,6 +43,12 @@ class Post(models.Model):
         auto_now_add=True
     )
     editado_em = models.DateTimeField(null=True, blank=True)
+    chave_idempotencia = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        editable=False,
+    )
 
     @property
     def fotos(self):
@@ -56,6 +62,11 @@ class Post(models.Model):
                 fields=["autor", "original"],
                 condition=models.Q(original__isnull=False),
                 name="uma_republicacao_por_usuario",
+            ),
+            models.UniqueConstraint(
+                fields=["autor", "chave_idempotencia"],
+                condition=models.Q(chave_idempotencia__isnull=False),
+                name="post_idempotencia_unica",
             ),
         ]
 
@@ -96,9 +107,22 @@ class Comentario(models.Model):
         blank=True,
     )
     criado_em = models.DateTimeField(auto_now_add=True)
+    chave_idempotencia = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        editable=False,
+    )
 
     class Meta:
         ordering = ["criado_em"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["autor", "chave_idempotencia"],
+                condition=models.Q(chave_idempotencia__isnull=False),
+                name="comentario_idempotencia_unica",
+            ),
+        ]
 
 
 class PostSemInteresse(models.Model):

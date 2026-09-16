@@ -8,6 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
 from profile.models import Perfil
+from posts.services import bloquear_usuarios_para_mutacao, obter_chave_idempotencia
 from krampt.paginacao import parametros_sem_pagina, paginar, MENSAGENS_POR_PAGINA
 
 from .forms import EnviarMensagemForm
@@ -96,27 +97,56 @@ def lista_de_conversas(request):
 @require_http_methods(["GET", "POST"])
 def conversa_view(request, conversa_id):
     conversa = get_object_or_404(
-        Conversa.objects.filter(participantes=request.user), pk=conversa_id
+        Conversa.objects.filter(participantes=request.user),
+        pk=conversa_id,
     )
-    outra_pessoa = conversa.participantes.exclude(pk=request.user.pk).select_related("perfil").first()
+    outra_pessoa = (
+        conversa.participantes.exclude(pk=request.user.pk)
+        .select_related("perfil")
+        .first()
+    )
     envio_permitido = bool(
         outra_pessoa and pode_enviar_mensagem(request.user, outra_pessoa)
     )
 
     if request.method == "POST":
-        if not envio_permitido:
+        if outra_pessoa is None:
             messages.error(request, AVISO_MENSAGEM_BLOQUEADA)
             return redirect("mensagens:detalhe", conversa_id=conversa.pk)
+
         formulario = EnviarMensagemForm(request.POST)
         if formulario.is_valid():
-            Mensagem.objects.create(
-                conversa=conversa,
-                autor=request.user,
-                conteudo=formulario.cleaned_data["conteudo"],
-            )
+            chave = obter_chave_idempotencia(request)
+            with transaction.atomic():
+                bloquear_usuarios_para_mutacao(request.user, outra_pessoa)
+
+                # Reavalia depois dos locks. Assim follow/block concorrente não
+                # deixa uma mensagem escapar com uma decisão de permissão velha.
+                if not pode_enviar_mensagem(request.user, outra_pessoa):
+                    messages.error(request, AVISO_MENSAGEM_BLOQUEADA)
+                    return redirect("mensagens:detalhe", conversa_id=conversa.pk)
+
+                if chave:
+                    existente = Mensagem.objects.filter(
+                        autor=request.user,
+                        chave_idempotencia=chave,
+                    ).first()
+                    if existente is not None:
+                        return redirect(
+                            "mensagens:detalhe",
+                            conversa_id=existente.conversa_id,
+                        )
+
+                Mensagem.objects.create(
+                    conversa=conversa,
+                    autor=request.user,
+                    conteudo=formulario.cleaned_data["conteudo"],
+                    chave_idempotencia=chave,
+                )
             return redirect("mensagens:detalhe", conversa_id=conversa.pk)
     else:
         formulario = EnviarMensagemForm()
+
     Mensagem.objects.filter(conversa=conversa, lida=False).exclude(
         autor=request.user
     ).update(lida=True)
@@ -141,7 +171,6 @@ def conversa_view(request, conversa_id):
             "parametros_url": parametros_sem_pagina(request),
         },
     )
-
 
 @login_required
 @require_http_methods(["GET", "POST"])
@@ -178,11 +207,12 @@ def criar_conversa(request):
     if existente is not None:
         return redirect("mensagens:detalhe", conversa_id=existente.pk)
 
-    if not pode_enviar_mensagem(request.user, outra):
-        messages.error(request, AVISO_MENSAGEM_BLOQUEADA)
-        return redirect("profile:perfil_publico", username=outra.username)
-
     with transaction.atomic():
+        bloquear_usuarios_para_mutacao(request.user, outra)
+        if not pode_enviar_mensagem(request.user, outra):
+            messages.error(request, AVISO_MENSAGEM_BLOQUEADA)
+            return redirect("profile:perfil_publico", username=outra.username)
+
         conversa, criada = Conversa.objects.get_or_create(chave=chave)
         if criada:
             conversa.participantes.add(request.user, outra)

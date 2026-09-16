@@ -1,3 +1,5 @@
+import secrets
+
 from django.db.models import Count, OuterRef, Subquery, Value
 from django.db.models.functions import Coalesce
 
@@ -16,6 +18,7 @@ def hashtags_populares(request):
         .values("total")[:1]
     )
     return {
+        "mutation_seed": secrets.token_hex(16),
         "hashtags_populares": (
             Hashtag.objects.annotate(
                 total_posts=Coalesce(Subquery(total_posts), Value(0)),

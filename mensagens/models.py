@@ -44,9 +44,22 @@ class Mensagem(models.Model):
     conteudo = models.CharField(max_length=280)
     criada_em = models.DateTimeField(auto_now_add=True)
     lida = models.BooleanField(default=False)
+    chave_idempotencia = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        editable=False,
+    )
 
     class Meta:
         ordering = ["criada_em", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["autor", "chave_idempotencia"],
+                condition=models.Q(chave_idempotencia__isnull=False),
+                name="mensagem_idempotencia_unica",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.autor.username}: {self.conteudo[:40]}"

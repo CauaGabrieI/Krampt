@@ -3,10 +3,16 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.db import transaction
 from django.db.models import Count, Exists, OuterRef, Q
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 from posts.models import Post, ImagemPost, UsuarioBloqueado
-from posts.services import posts_para_exibir, usuario_bloqueado_entre
+from posts.services import (
+    bloquear_usuarios_para_mutacao,
+    posts_para_exibir,
+    resolver_estado_desejado,
+    usuario_bloqueado_entre,
+)
 from notificacoes.services import notificar, remover_notificacao
 from krampt.paginacao import parametros_sem_pagina, paginar
 from .forms import EditarPerfilForm
@@ -174,21 +180,33 @@ def seguir_usuario(request, usuario_id):
     alvo = get_object_or_404(User, pk=usuario_id)
     destino = request.POST.get("next") or request.META.get("HTTP_REFERER", "")
     if not url_has_allowed_host_and_scheme(
-        destino, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+        destino,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
     ):
         destino = reverse("home")
-    if alvo != request.user:
+
+    if alvo == request.user:
+        return redirect(destino)
+
+    with transaction.atomic():
+        bloquear_usuarios_para_mutacao(request.user, alvo)
         if usuario_bloqueado_entre(request.user, alvo):
             return redirect(destino)
+
         perfil, _ = Perfil.objects.get_or_create(usuario=request.user)
-        if perfil.seguindo.filter(pk=alvo.pk).exists():
-            perfil.seguindo.remove(alvo)
-            remover_notificacao(alvo, "seguidor", request.user)
-        else:
+        perfil = Perfil.objects.select_for_update().get(pk=perfil.pk)
+        atual = perfil.seguindo.filter(pk=alvo.pk).exists()
+        desejado = resolver_estado_desejado(request, atual)
+
+        if desejado:
             perfil.seguindo.add(alvo)
             notificar(alvo, "seguidor", request.user)
-    return redirect(destino)
+        else:
+            perfil.seguindo.remove(alvo)
+            remover_notificacao(alvo, "seguidor", request.user)
 
+    return redirect(destino)
 
 @login_required
 @require_http_methods(["GET", "POST"])
