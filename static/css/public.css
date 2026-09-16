@@ -372,19 +372,20 @@
 
 .auth-page {
   display: flex;
+  min-height: var(--viewport-height);
+  padding: 28px 0 0;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
 }
 .auth-page .auth-layout {
   flex: 0 0 auto;
-  margin: auto 0 28px;
+  margin: 0 auto 28px;
 }
 .auth-page .public-footer {
-  width: 100vw;
+  width: 100%;
   flex: 0 0 auto;
   margin-top: auto;
-  margin-inline: calc(50% - 50vw);
 }
 .auth-page .public-footer-inner {
   width: min(1180px, calc(100% - 40px));
@@ -396,9 +397,12 @@
 }
 
 @media (max-width: 720px) {
+  .auth-page {
+    padding-top: 0;
+  }
   .auth-page .auth-layout {
     width: 100%;
     min-height: 0;
-    margin: auto 0 0;
+    margin: 0;
   }
 }
